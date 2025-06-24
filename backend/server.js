@@ -4,6 +4,7 @@ const bodyParser = require("body-parser");
 const authRoutes = require("./routes/authRoutes");
 const hospitalshopRoutes = require("./routes/hospitalShopRoutes");
 const productRoutes = require("./routes/ProductRoutes");
+const cartRoutes = require("./routes/cartRoutes");
 
 dotenv.config();
 const app = express();
@@ -12,6 +13,7 @@ app.use(bodyParser.json());
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/healthshop", hospitalshopRoutes);
 app.use('/api', productRoutes);
+app.use('/api/cart', cartRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () =>

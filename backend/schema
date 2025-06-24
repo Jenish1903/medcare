@@ -51,11 +51,29 @@ CREATE TABLE
     product_id INT NOT NULL,
     image VARCHAR(500),
     name VARCHAR(100),
-    rating INT, 
+    rating INT,
     comment TEXT,
     status_flag TINYINT (1) DEFAULT 1,
     create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     create_user INT,
     update_user INT FOREIGN KEY (product_id) REFERENCES tbl_product (id)
+  );
+
+CREATE TABLE
+  tbl_cart_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    product_id INT NOT NULL,
+    name VARCHAR(255),
+    image VARCHAR(255),
+    price DECIMAL(10, 2),
+    quantity INT DEFAULT 1,
+    status_flag TINYINT (1) DEFAULT 1,
+    create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT,
+    update_user INT,
+    -- Foreign Keys
+    FOREIGN KEY (product_id) REFERENCES tbl_product (id)
   );
