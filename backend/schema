@@ -1,0 +1,61 @@
+CREATE DATABASE IF NOT EXISTS medcare;
+
+USE medcare;
+
+CREATE TABLE
+  tbl_user (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    email VARCHAR(100) UNIQUE,
+    phone VARCHAR(15) UNIQUE,
+    gender VARCHAR(10),
+    dob DATE,
+    password VARCHAR(255),
+    status_flag TINYINT (1) DEFAULT 1,
+    isNotify TINYINT (1) DEFAULT 0,
+    otp VARCHAR(6),
+    otp_expire_time DATETIME,
+    isVerify TINYINT (1) DEFAULT 0,
+    create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT,
+    update_user INT
+  );
+
+CREATE TABLE
+  tbl_store (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    logo VARCHAR(255) NOT NULL,
+    status_flag TINYINT (1) DEFAULT 1,
+    create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT,
+    update_user INT
+  );
+
+CREATE TABLE
+  tbl_filter_categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    status_flag TINYINT (1) DEFAULT 1,
+    create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT,
+    update_user INT
+  );
+
+CREATE TABLE
+  tbl_product_review (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    image VARCHAR(500),
+    name VARCHAR(100),
+    rating INT, 
+    comment TEXT,
+    status_flag TINYINT (1) DEFAULT 1,
+    create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT,
+    update_user INT FOREIGN KEY (product_id) REFERENCES tbl_product (id)
+  );
