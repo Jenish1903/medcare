@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/db'); // Adjust the path if needed
+const sequelize = require('../config/sequelize');
 
-const user = sequelize.define('tbl_user', {
+const User = sequelize.define('tbl_user', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
@@ -13,16 +13,22 @@ const user = sequelize.define('tbl_user', {
   },
   email: {
     type: DataTypes.STRING(100),
-    unique: true,
     allowNull: true,
+    unique: true,
+    validate: {
+      isEmail: true,
+    },
   },
   phone: {
     type: DataTypes.STRING(15),
-    unique: true,
     allowNull: true,
+    unique: true,
+    validate: {
+      is: /^[0-9]{10,15}$/, // basic validation for digits
+    },
   },
   gender: {
-    type: DataTypes.STRING(10),
+    type: DataTypes.ENUM('male', 'female', 'other'),
     allowNull: true,
   },
   dob: {
@@ -33,9 +39,15 @@ const user = sequelize.define('tbl_user', {
     type: DataTypes.STRING(255),
     allowNull: false,
   },
+  role: {
+    type: DataTypes.ENUM('admin', 'doctor', 'patient'),
+    defaultValue: 'patient',
+    allowNull: false,
+  },
   status_flag: {
     type: DataTypes.TINYINT,
     defaultValue: 1,
+    comment: '1 = active, 0 = inactive',
   },
   isNotify: {
     type: DataTypes.TINYINT,
@@ -52,6 +64,7 @@ const user = sequelize.define('tbl_user', {
   isVerify: {
     type: DataTypes.TINYINT,
     defaultValue: 0,
+    comment: '0 = not verified, 1 = verified',
   },
   create_date: {
     type: DataTypes.DATE,
@@ -70,8 +83,9 @@ const user = sequelize.define('tbl_user', {
     allowNull: true,
   },
 }, {
-  timestamps: false, // Since you manually manage timestamps
   tableName: 'tbl_user',
+  timestamps: false, // you're manually handling created/updated dates
+  underscored: true, // optional: uses snake_case for fields in the DB
 });
 
-module.exports = user;
+module.exports = User;

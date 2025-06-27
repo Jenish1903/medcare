@@ -3,7 +3,7 @@ CREATE DATABASE IF NOT EXISTS medcare;
 USE medcare;
 
 CREATE TABLE
-  tbl_user (
+  IF NOT EXISTS tbl_user (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100),
     email VARCHAR(100) UNIQUE,
@@ -11,6 +11,7 @@ CREATE TABLE
     gender VARCHAR(10),
     dob DATE,
     password VARCHAR(255),
+    role ENUM ('admin', 'doctor', 'patient') DEFAULT 'patient',
     status_flag TINYINT (1) DEFAULT 1,
     isNotify TINYINT (1) DEFAULT 0,
     otp VARCHAR(6),
@@ -23,7 +24,7 @@ CREATE TABLE
   );
 
 CREATE TABLE
-  tbl_store (
+  IF NOT EXISTS tbl_store (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     logo VARCHAR(255) NOT NULL,
@@ -35,7 +36,7 @@ CREATE TABLE
   );
 
 CREATE TABLE
-  tbl_filter_categories (
+  IF NOT EXISTS tbl_filter_categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     status_flag TINYINT (1) DEFAULT 1,
@@ -46,7 +47,27 @@ CREATE TABLE
   );
 
 CREATE TABLE
-  tbl_product_review (
+  IF NOT EXISTS tbl_product (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    image VARCHAR(500),
+    description TEXT,
+    benefits TEXT,
+    ingredients TEXT,
+    how_to_use TEXT,
+    warnings TEXT,
+    storage VARCHAR(255),
+    manufacturer VARCHAR(255),
+    status_flag TINYINT DEFAULT 1,
+    create_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    update_date DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT,
+    update_user INT
+  );
+
+CREATE TABLE
+  IF NOT EXISTS tbl_product_review (
     id INT AUTO_INCREMENT PRIMARY KEY,
     product_id INT NOT NULL,
     image VARCHAR(500),
@@ -61,7 +82,7 @@ CREATE TABLE
   );
 
 CREATE TABLE
-  tbl_cart_items (
+  IF NOT EXISTS tbl_cart_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     product_id INT NOT NULL,
@@ -76,4 +97,28 @@ CREATE TABLE
     update_user INT,
     -- Foreign Keys
     FOREIGN KEY (product_id) REFERENCES tbl_product (id)
+  );
+
+CREATE TABLE
+  IF NOT EXISTS tbl_hospital_products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    image TEXT NOT NULL,
+    status_flag TINYINT (1) DEFAULT 1,
+    create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT,
+    update_user INT
+  );
+
+CREATE TABLE
+  IF NOT EXISTS tbl_services (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    image VARCHAR(255),
+    status_flag TINYINT (1) DEFAULT 1,
+    create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT,
+    update_user INT
   );

@@ -1,8 +1,10 @@
+// ✅ cartController.js
 const Cart = require("../models/cartModel");
 
 // Add or update item in cart
 const addToCart = async (req, res) => {
-  const { user_id, product_id, name, image, price, quantity, create_user } = req.body;
+  const user_id = req.user.id; // From token
+  const { product_id, name, image, price, quantity, create_user } = req.body;
 
   try {
     const existingItem = await Cart.findOne({
@@ -38,13 +40,13 @@ const addToCart = async (req, res) => {
   }
 };
 
-// Get all cart items for a user
+// Get all cart items for the authenticated user
 const getCart = async (req, res) => {
   try {
-    const user_id = req.params.user_id;
+     const user_id = req.user.id;
 
     const cartItems = await Cart.findAll({
-      where: { user_id, status_flag: 1 }
+      where: { status_flag: 1 }
     });
 
     res.json(cartItems);
@@ -83,6 +85,7 @@ const deleteCartItem = async (req, res) => {
     if (!item) return res.status(404).json({ message: "Item not found" });
 
     item.status_flag = 0;
+    item.update_date = new Date();
     await item.save();
 
     res.json({ message: "Item removed from cart" });
@@ -91,7 +94,6 @@ const deleteCartItem = async (req, res) => {
   }
 };
 
-// ✅ Export all functions
 module.exports = {
   addToCart,
   getCart,
