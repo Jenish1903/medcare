@@ -12,10 +12,10 @@ const authocrizeRoles = require('../middleware/roleMiddleware');
 router.get('/stores', authenticate, controller.getAllStores);
 
 // Only admin can create/update/delete stores
-router.post('/stores/create', authenticate, authocrizeRoles(['doctor']), controller.createStore);
-router.get('/stores/:id', authenticate, authocrizeRoles(['doctor']), controller.getStoreById);
-router.put('/stores/:id', authenticate, authocrizeRoles(['doctor']), controller.updateStore);
-router.delete('/stores/:id', authenticate, authocrizeRoles(['doctor']), controller.deleteStore);
+router.post('/stores/create', authenticate, authocrizeRoles(['admin']), controller.createStore);
+router.get('/stores/:id', authenticate, authocrizeRoles(['admin']), controller.getStoreById);
+router.put('/stores/:id', authenticate, authocrizeRoles(['admin']), controller.updateStore);
+router.delete('/stores/:id', authenticate, authocrizeRoles(['admin']), controller.deleteStore);
 router.get("/filters", authenticate, controller.getAllFilterCategories);
 
 // ---------- HOSPITAL PRODUCTS ----------
@@ -25,8 +25,8 @@ router.get('/products', authenticate, controller.getAllProducts);
 router.get('/products/:id', authenticate, controller.getProductById);
 
 // Admin and Doctor
-router.put('/update/:id', authenticate, authocrizeRoles(['admin', 'doctor']), controller.updateProduct);
-router.delete('/delete/:id', authenticate, authocrizeRoles(['admin', 'doctor']), controller.deleteProduct);
+router.put('/product/update/:id', authenticate, authocrizeRoles(['admin', 'doctor']), controller.updateProduct);
+router.delete('/product/delete/:id', authenticate, authocrizeRoles(['admin', 'doctor']), controller.deleteProduct);
 router.get('/edit/:id', authenticate, authocrizeRoles(['admin', 'doctor']), controller.editProduct);
 
 // ---------- CART ROUTES ----------

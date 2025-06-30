@@ -5,19 +5,29 @@ const ProductReview = require('../models/productReviewModel');
 const Cart = require("../models/cartModel");
 const HospitalProduct = require('../models/HospitalProductModel');
 
-// GET all stores
+// GET all active stores
 const getAllStores = async (req, res) => {
   try {
     const stores = await Store.findAll({
-      where: { status_flag: 1 } // ✅ Only active stores
+      where: { status_flag: 1 }
     });
-    res.json(stores);
+
+    res.status(200).json({
+      success: true,
+      message: "Stores fetched successfully",
+      result: stores.length,
+      data: stores
+    });
   } catch (error) {
-    console.error("Error fetching stores:", error);
-    res.status(500).json({ error: "Server error" });
+    console.error("Error fetching stores:", error.message);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch stores",
+      error: error.message
+    });
   }
 };
-
 
 // Get all filter categories
 const getAllFilterCategories = async (req, res) => {
@@ -37,7 +47,10 @@ const createStore = async (req, res) => {
     const { name, logo, create_user } = req.body;
 
     if (!name || !logo) {
-      return res.status(400).json({ message: "Name and logo are required." });
+      return res.status(400).json({
+        success: false,
+        message: "Name and logo are required"
+      });
     }
 
     const newStore = await Store.create({
@@ -50,26 +63,50 @@ const createStore = async (req, res) => {
       status_flag: 1
     });
 
-    res.status(201).json({ message: "Store created successfully", data: newStore });
+    res.status(201).json({
+      success: true,
+      message: "Store created successfully",
+      result: 1,
+      data: newStore
+    });
   } catch (err) {
-    console.error("Error creating store:", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    console.error("Error creating store:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error while creating store",
+      error: err.message
+    });
   }
 };
+
 
 // GET single store (edit)
 const getStoreById = async (req, res) => {
   try {
     const { id } = req.params;
+
     const store = await Store.findByPk(id);
 
-    if (!store) {
-      return res.status(404).json({ message: "Store not found" });
+    if (!store || store.status_flag !== 1) {
+      return res.status(404).json({
+        success: false,
+        message: "Store not found"
+      });
     }
 
-    res.json(store);
+    res.status(200).json({
+      success: true,
+      message: "Store fetched successfully",
+      result: 1,
+      data: store
+    });
   } catch (err) {
-    res.status(500).json({ message: "Error fetching store", error: err.message });
+    console.error("Error fetching store:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching store",
+      error: err.message
+    });
   }
 };
 
@@ -80,8 +117,11 @@ const updateStore = async (req, res) => {
     const { name, logo, update_user } = req.body;
 
     const store = await Store.findByPk(id);
-    if (!store) {
-      return res.status(404).json({ message: "Store not found" });
+    if (!store || store.status_flag !== 1) {
+      return res.status(404).json({
+        success: false,
+        message: "Store not found"
+      });
     }
 
     await store.update({
@@ -91,9 +131,19 @@ const updateStore = async (req, res) => {
       update_date: new Date()
     });
 
-    res.json({ message: "Store updated successfully", data: store });
+    res.status(200).json({
+      success: true,
+      message: "Store updated successfully",
+      result: 1,
+      data: store
+    });
   } catch (err) {
-    res.status(500).json({ message: "Error updating store", error: err.message });
+    console.error("Error updating store:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Error updating store",
+      error: err.message
+    });
   }
 };
 
@@ -101,19 +151,32 @@ const updateStore = async (req, res) => {
 const deleteStore = async (req, res) => {
   try {
     const { id } = req.params;
-    const store = await Store.findByPk(id);
 
-    if (!store) {
-      return res.status(404).json({ message: "Store not found" });
+    const store = await Store.findByPk(id);
+    if (!store || store.status_flag !== 1) {
+      return res.status(404).json({
+        success: false,
+        message: "Store not found"
+      });
     }
 
     store.status_flag = 0;
     store.update_date = new Date();
     await store.save();
 
-    res.json({ message: "Store deleted (soft) successfully" });
+    res.status(200).json({
+      success: true,
+      message: "Store deleted (soft) successfully",
+      result: 1,
+      data: { id }
+    });
   } catch (err) {
-    res.status(500).json({ message: "Error deleting store", error: err.message });
+    console.error("Error deleting store:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting store",
+      error: err.message
+    });
   }
 };
 
@@ -125,7 +188,10 @@ const createProduct = async (req, res) => {
     const { product, product_description } = req.body;
 
     if (!product || !product.name || !product.price) {
-      return res.status(400).json({ message: "Product name and price are required." });
+      return res.status(400).json({
+        success: false,
+        message: "Product name and price are required."
+      });
     }
 
     // Flatten description + details
@@ -150,6 +216,7 @@ const createProduct = async (req, res) => {
     const productId = newProduct.id;
 
     // Insert reviews (if any)
+    let insertedReviews = 0;
     if (reviews.length > 0) {
       const reviewData = reviews.map(r => ({
         ...r,
@@ -157,23 +224,31 @@ const createProduct = async (req, res) => {
       }));
 
       await ProductReview.bulkCreate(reviewData);
+      insertedReviews = reviews.length;
     }
 
-    res.status(201).json({
+    return res.status(201).json({
+      success: true,
       message: "Product created successfully",
-      productId
+      result: 1,
+      data: {
+        product_id: productId,
+        reviews_inserted: insertedReviews
+      }
     });
   } catch (error) {
     console.error("Error creating product:", error);
 
     if (error.name === "SequelizeValidationError") {
       return res.status(400).json({
+        success: false,
         message: "Validation failed",
         errors: error.errors.map(e => e.message)
       });
     }
 
     res.status(500).json({
+      success: false,
       message: "Product creation failed",
       error: error.message
     });
@@ -181,10 +256,11 @@ const createProduct = async (req, res) => {
 };
 
 
+
 // GET ALL Products in Nested Format
 const getAllProducts = async (req, res) => {
   try {
-    const { id, role } = req.user; // <-- comes from authenticate middleware
+    const { id, role } = req.user; // from authenticate middleware
 
     const products = await Product.findAll({
       include: [{ model: ProductReview, as: 'reviews' }]
@@ -194,21 +270,30 @@ const getAllProducts = async (req, res) => {
       const userRoleField =
         role === 'admin' ? { admin_id: id } :
         role === 'doctor' ? { doctor_id: id } :
-        { patient_id: id }; // fallback to patient
+        { patient_id: id };
 
       return {
         id: product.id,
         name: product.name,
         price: product.price,
         image: product.image,
-        ...userRoleField, // dynamically added here
+        ...userRoleField,
+        reviews: product.reviews || []
       };
     });
 
-    res.json(formatted);
+    res.status(200).json({
+      success: true,
+      message: "Products fetched successfully",
+      result: formatted.length,
+      data: formatted
+    });
   } catch (err) {
+    console.error("Error fetching products:", err.message);
+
     res.status(500).json({
-      message: 'Error retrieving products',
+      success: false,
+      message: "Error retrieving products",
       error: err.message
     });
   }
@@ -222,7 +307,10 @@ const getProductById = async (req, res) => {
     });
 
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({
+        success: false,
+        message: "Product not found"
+      });
     }
 
     const formatted = {
@@ -245,14 +333,23 @@ const getProductById = async (req, res) => {
             storage: product.storage,
             manufacturer: product.manufacturer
           },
-          review: product.reviews
+          review: product.reviews || []
         }
       ]
     };
 
-    res.json(formatted);
+    res.status(200).json({
+      success: true,
+      message: "Product retrieved successfully",
+      result: 1,
+      data: formatted
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Error retrieving product', error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving product",
+      error: err.message
+    });
   }
 };
 
@@ -263,12 +360,18 @@ const updateProduct = async (req, res) => {
     const { product, product_description } = req.body;
 
     if (!product) {
-      return res.status(400).json({ message: 'Missing product data' });
+      return res.status(400).json({
+        success: false,
+        message: 'Missing product data'
+      });
     }
 
     const existingProduct = await Product.findByPk(id);
     if (!existingProduct) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found'
+      });
     }
 
     const desc = product_description?.[0]?.description || {};
@@ -288,17 +391,24 @@ const updateProduct = async (req, res) => {
 
     await existingProduct.update(updateData);
 
-    res.json({
+    res.status(200).json({
+      success: true,
       message: 'Product updated successfully',
-      product: existingProduct
+      result: 1,
+      data: {
+        updated_product: existingProduct
+      }
     });
 
   } catch (err) {
-    res.status(500).json({ message: 'Error updating product', error: err.message });
+    console.error("Error updating product:", err.message);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating product',
+      error: err.message
+    });
   }
-};
-
-
+}; 
 
 // DELETE Product
 const deleteProduct = async (req, res) => {
@@ -313,9 +423,21 @@ const deleteProduct = async (req, res) => {
     await ProductReview.destroy({ where: { product_id: id } }); // Delete associated reviews
     await product.destroy(); // Delete the product
 
-    res.json({ message: 'Product deleted successfully' });
+    // res.json({ message: 'Product deleted successfully' });
+    res.status(200).json({
+      success: true,
+      message: 'Product deleted successfully',
+      data: {
+        product_id: id,
+      }
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Error deleting product', error: err.message });
+    console.error('Error deleting product:', err.message);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting product',
+      error: err.message
+    });
   }
 };
 
@@ -351,7 +473,12 @@ const addToCart = async (req, res) => {
       existingItem.update_date = new Date();
       await existingItem.save();
 
-      return res.json({ message: "Cart item updated", data: existingItem });
+      return res.status(200).json({
+        success: true,
+        message: "Cart item updated",
+        result: 1,
+        data: existingItem
+      });
     }
 
     const newItem = await Cart.create({
@@ -368,24 +495,47 @@ const addToCart = async (req, res) => {
       status_flag: 1
     });
 
-    res.status(201).json({ message: "Item added to cart", data: newItem });
+    res.status(201).json({
+      success: true,
+      message: "Item added to cart",
+      result: 1,
+      data: newItem
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Add to cart error:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Failed to add item to cart",
+      error: err.message
+    });
   }
 };
 
 // Get all cart items for the authenticated user
 const getCart = async (req, res) => {
   try {
-     const user_id = req.user.id;
+    const user_id = req.user.id;
 
     const cartItems = await Cart.findAll({
-      where: { status_flag: 1 }
+      where: {
+        user_id,
+        status_flag: 1
+      }
     });
 
-    res.json(cartItems);
+    res.status(200).json({
+      success: true,
+      message: "Cart items fetched successfully",
+      result: cartItems.length,
+      data: cartItems
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Error fetching cart:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch cart items",
+      error: err.message
+    });
   }
 };
 
@@ -395,8 +545,12 @@ const updateCartItem = async (req, res) => {
 
   try {
     const item = await Cart.findByPk(id);
+
     if (!item || item.status_flag !== 1) {
-      return res.status(404).json({ message: "Cart item not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Cart item not found"
+      });
     }
 
     item.quantity = quantity;
@@ -404,9 +558,19 @@ const updateCartItem = async (req, res) => {
     item.update_date = new Date();
     await item.save();
 
-    res.json({ message: "Cart item updated", data: item });
+    res.status(200).json({
+      success: true,
+      message: "Cart item updated successfully",
+      result: 1,
+      data: item
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Error updating cart item:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update cart item",
+      error: err.message
+    });
   }
 };
 
@@ -416,29 +580,60 @@ const deleteCartItem = async (req, res) => {
 
   try {
     const item = await Cart.findByPk(id);
-    if (!item) return res.status(404).json({ message: "Item not found" });
+
+    if (!item || item.status_flag !== 1) {
+      return res.status(404).json({
+        success: false,
+        message: "Cart item not found"
+      });
+    }
 
     item.status_flag = 0;
     item.update_date = new Date();
     await item.save();
 
-    res.json({ message: "Item removed from cart" });
+    res.status(200).json({
+      success: true,
+      message: "Item removed from cart successfully",
+      result: 1,
+      data: {
+        id: item.id,
+        status_flag: item.status_flag,
+        update_date: item.update_date
+      }
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Error removing item from cart:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Failed to remove item from cart",
+      error: err.message
+    });
   }
 };
 
 // Get all active products
 const getHospitalProducts = async (req, res) => {
   try {
-    const products = await HospitalProduct.findAll({ where: { status_flag: 1 } });
-    res.json({ success: true, data: products });
+    const products = await HospitalProduct.findAll({
+      where: { status_flag: 1 }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Hospital products fetched successfully",
+      result: products.length,
+      data: products
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Error fetching hospital products:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching hospital products",
+      error: err.message
+    });
   }
 };
-
 
 module.exports = {
   getAllStores,
