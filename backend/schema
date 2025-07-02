@@ -122,3 +122,138 @@ CREATE TABLE
     create_user INT,
     update_user INT
   );
+
+CREATE TABLE
+  IF NOT EXISTS tbl_doctors (
+    id INT AUTO_INCREMENT PRIMARY KEY, -- Surrogate key for this table
+    userId INT UNIQUE NOT NULL, -- Foreign Key to tbl_user.id (the user who is a doctor)
+    image VARCHAR(255),
+    specialist VARCHAR(255),
+    experience INT,
+    reviews INT DEFAULT 0,
+    education VARCHAR(255),
+    license VARCHAR(255),
+    clinicName VARCHAR(255),
+    clinicLocation VARCHAR(255),
+    clinicPhoneNo VARCHAR(255),
+    workingHours TEXT,
+    availableDates TEXT,
+    status TINYINT (1) DEFAULT 0, -- 0 for offline, 1 for online
+    status_flag TINYINT (1) DEFAULT 1,
+    create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT,
+    update_user INT,
+    FOREIGN KEY (userId) REFERENCES tbl_user (id) ON DELETE CASCADE ON UPDATE CASCADE
+  );
+
+CREATE TABLE
+  IF NOT EXISTS tbl_patients (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    userId INT UNIQUE NOT NULL,
+    bloodType VARCHAR(5),
+    medicalHistory TEXT,
+    emergencyContactName VARCHAR(100),
+    emergencyContactPhone VARCHAR(15),
+    status_flag TINYINT (1) DEFAULT 1,
+    create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT,
+    update_user INT,
+    FOREIGN KEY (userId) REFERENCES tbl_user (id) ON DELETE CASCADE ON UPDATE CASCADE
+  );
+
+CREATE TABLE
+  IF NOT EXISTS tbl_chat_sessions (
+    id INT AUTO_INCREMENT PRIMARY KEY, -- Internal auto-incrementing primary key for the record
+    sessionId VARCHAR(41) UNIQUE NOT NULL, -- Unique ID for the chat session (UUID, length 41 for "CHAT_" + UUID)
+    doctorId INT NOT NULL, -- ID of the doctor in the chat (references tbl_user.id or tbl_doctors.userId)
+    patientId INT NOT NULL, -- ID of the patient in the chat (references tbl_user.id or tbl_patients.userId)
+    isActive TINYINT (1) DEFAULT 1, -- 1 for active, 0 for inactive/ended (as per your accepted schema)
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- IMPORTANT: This column must be present
+    ended_at TIMESTAMP NULL, -- Timestamp when the chat session was closed
+    status_flag TINYINT (1) DEFAULT 1, -- General flag for active/inactive records (1: active, 0: inactive)
+    create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT,
+    update_user INT,
+    FOREIGN KEY (doctorId) REFERENCES tbl_doctors (userId) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (patientId) REFERENCES tbl_patients (userId) ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE KEY (doctorId, patientId, isActive)
+  );
+
+CREATE TABLE
+  IF NOT EXISTS tbl_chat_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY, -- Internal auto-incrementing ID for the message record
+    messageId VARCHAR(41) UNIQUE NOT NULL, -- UUID for the message (e.g., 'MSG-UUID')
+    sessionId VARCHAR(41) NOT NULL, -- UUID of the chat session (references tbl_chat_sessions.sessionId)
+    senderId INT NOT NULL, -- References tbl_user.id (INT, can be doctor or patient)
+    message TEXT NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status_flag TINYINT (1) DEFAULT 1,
+    create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT, -- References tbl_user.id
+    update_user INT, -- References tbl_user.id
+    FOREIGN KEY (sessionId) REFERENCES tbl_chat_sessions (sessionId) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (senderId) REFERENCES tbl_user (id) ON DELETE CASCADE ON UPDATE CASCADE
+  );
+
+CREATE TABLE
+  IF NOT EXISTS tbl_appointments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    doctorId INT NOT NULL,
+    patientId INT NOT NULL,
+    appointmentDate DATE NOT NULL,
+    appointmentTime VARCHAR(10) NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending',
+    status_flag TINYINT (1) DEFAULT 1, -- 1 for active, 0 for inactive/deleted (soft delete)
+    create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT,
+    update_user INT,
+    FOREIGN KEY (doctorId) REFERENCES tbl_doctors (userId) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (patientId) REFERENCES tbl_patients (userId) ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE (doctorId, appointmentDate, appointmentTime)
+  );
+
+CREATE TABLE
+  IF NOT EXISTS tbl_doctor_reviews (
+    reviewId VARCHAR(36) PRIMARY KEY, -- UUID for the review ID (e.g., 'REV-UUID')
+    doctorId INT NOT NULL, -- References tbl_doctors.userId (INT)
+    patientId INT NOT NULL, -- References tbl_patients.userId (INT)
+    rating INT NOT NULL CHECK (
+      rating >= 1
+      AND rating <= 5
+    ),
+    comment TEXT,
+    status_flag TINYINT (1) DEFAULT 1, -- Restored to TINYINT(1) for boolean flag
+    create_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    create_user INT, -- References tbl_user.id
+    update_user INT, -- References tbl_user.id
+    FOREIGN KEY (doctorId) REFERENCES tbl_doctors (userId) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (patientId) REFERENCES tbl_patients (userId) ON DELETE CASCADE ON UPDATE CASCADE
+  );
+
+CREATE TABLE
+  IF NOT EXISTS tbl_calls (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    callId VARCHAR(255) UNIQUE NOT NULL, -- Unique identifier for the call (e.g., UUID-based: VID_UUID, AUD_UUID)
+    sessionId VARCHAR(255) NOT NULL, -- Identifier for the chat/communication session
+    callerId INT NOT NULL, -- ID of the user initiating the call (references tbl_user.id)
+    calleeId VARCHAR(255) NOT NULL, -- ID of the recipient (e.g., doctorId, patientId; can be string)
+    type ENUM ('video', 'audio') NOT NULL, -- Type of call
+    status ENUM (
+      'calling',
+      'ringing',
+      'active',
+      'ended',
+      'failed',
+      'cancelled'
+    ) DEFAULT 'calling',
+    rtcToken TEXT NOT NULL, -- The WebRTC token for connecting to the call
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (callerId) REFERENCES tbl_user (id) ON DELETE CASCADE ON UPDATE CASCADE
+  );

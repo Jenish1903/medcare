@@ -1,22 +1,22 @@
 const Store = require("../models/storeModel");
-const FilterCategory = require("../models/filterCategoryModel"); 
-const Product = require('../models/productModel');
-const ProductReview = require('../models/productReviewModel');
+const FilterCategory = require("../models/filterCategoryModel");
+const Product = require("../models/productModel");
+const ProductReview = require("../models/productReviewModel");
 const Cart = require("../models/cartModel");
-const HospitalProduct = require('../models/HospitalProductModel');
+const HospitalProduct = require("../models/HospitalProductModel");
 
-// GET all active stores
+// GET all active stores  
 const getAllStores = async (req, res) => {
   try {
     const stores = await Store.findAll({
-      where: { status_flag: 1 }
+      where: { status_flag: 1 },
     });
 
     res.status(200).json({
       success: true,
       message: "Stores fetched successfully",
       result: stores.length,
-      data: stores
+      data: stores,
     });
   } catch (error) {
     console.error("Error fetching stores:", error.message);
@@ -24,7 +24,7 @@ const getAllStores = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch stores",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -40,18 +40,38 @@ const getAllFilterCategories = async (req, res) => {
   }
 };
 
-
 // CREATE store
 const createStore = async (req, res) => {
+  const { id, role } = req.user; // from auth middleware
   try {
     const { name, logo, create_user } = req.body;
 
-    if (!name || !logo) {
+    // Input validation
+    if (!name || typeof name !== "string" || name.trim() === "") {
       return res.status(400).json({
         success: false,
-        message: "Name and logo are required"
+        message: "Store name is required and must be a valid string.",
       });
     }
+    if (!logo || typeof logo !== "string" || logo.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Store logo is required and must be a valid string.",
+      });
+    }
+    if (!create_user || typeof create_user !== "number") {
+      return res.status(400).json({
+        success: false,
+        message: "create_user is required and must be a number.",
+      });
+    }
+
+    const userRoleField =
+      role === "admin"
+        ? { admin_id: id }
+        : role === "doctor"
+        ? { doctor_id: id }
+        : { patient_id: id };
 
     const newStore = await Store.create({
       name,
@@ -60,37 +80,44 @@ const createStore = async (req, res) => {
       update_user: create_user,
       create_date: new Date(),
       update_date: new Date(),
-      status_flag: 1
+      status_flag: 1,
+      ...userRoleField,
     });
 
     res.status(201).json({
       success: true,
       message: "Store created successfully",
       result: 1,
-      data: newStore
+      data: newStore,
     });
   } catch (err) {
     console.error("Error creating store:", err.message);
     res.status(500).json({
       success: false,
       message: "Server error while creating store",
-      error: err.message
+      error: err.message,
     });
   }
 };
 
-
-// GET single store (edit)
+// GET store by ID
 const getStoreById = async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (isNaN(Number(id))) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid store ID",
+      });
+    }
 
     const store = await Store.findByPk(id);
 
     if (!store || store.status_flag !== 1) {
       return res.status(404).json({
         success: false,
-        message: "Store not found"
+        message: "Store not found",
       });
     }
 
@@ -98,14 +125,14 @@ const getStoreById = async (req, res) => {
       success: true,
       message: "Store fetched successfully",
       result: 1,
-      data: store
+      data: store,
     });
   } catch (err) {
     console.error("Error fetching store:", err.message);
     res.status(500).json({
       success: false,
       message: "Error fetching store",
-      error: err.message
+      error: err.message,
     });
   }
 };
@@ -116,11 +143,39 @@ const updateStore = async (req, res) => {
     const { id } = req.params;
     const { name, logo, update_user } = req.body;
 
+    if (isNaN(Number(id))) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid store ID",
+      });
+    }
+
+    if (!name || typeof name !== "string" || name.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Store name is required and must be a valid string.",
+      });
+    }
+
+    if (!logo || typeof logo !== "string" || logo.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Store logo is required and must be a valid string.",
+      });
+    }
+
+    if (!update_user || typeof update_user !== "number") {
+      return res.status(400).json({
+        success: false,
+        message: "update_user is required and must be a number.",
+      });
+    }
+
     const store = await Store.findByPk(id);
     if (!store || store.status_flag !== 1) {
       return res.status(404).json({
         success: false,
-        message: "Store not found"
+        message: "Store not found",
       });
     }
 
@@ -128,21 +183,21 @@ const updateStore = async (req, res) => {
       name,
       logo,
       update_user,
-      update_date: new Date()
+      update_date: new Date(),
     });
 
     res.status(200).json({
       success: true,
       message: "Store updated successfully",
       result: 1,
-      data: store
+      data: store,
     });
   } catch (err) {
     console.error("Error updating store:", err.message);
     res.status(500).json({
       success: false,
       message: "Error updating store",
-      error: err.message
+      error: err.message,
     });
   }
 };
@@ -152,11 +207,18 @@ const deleteStore = async (req, res) => {
   try {
     const { id } = req.params;
 
+    if (isNaN(Number(id))) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid store ID",
+      });
+    }
+
     const store = await Store.findByPk(id);
     if (!store || store.status_flag !== 1) {
       return res.status(404).json({
         success: false,
-        message: "Store not found"
+        message: "Store not found",
       });
     }
 
@@ -168,14 +230,14 @@ const deleteStore = async (req, res) => {
       success: true,
       message: "Store deleted (soft) successfully",
       result: 1,
-      data: { id }
+      data: { id },
     });
   } catch (err) {
     console.error("Error deleting store:", err.message);
     res.status(500).json({
       success: false,
       message: "Error deleting store",
-      error: err.message
+      error: err.message,
     });
   }
 };
@@ -187,14 +249,35 @@ const createProduct = async (req, res) => {
   try {
     const { product, product_description } = req.body;
 
-    if (!product || !product.name || !product.price) {
+    if (!product || typeof product !== "object") {
       return res.status(400).json({
         success: false,
-        message: "Product name and price are required."
+        message: "Product data is required and must be an object.",
       });
     }
 
-    // Flatten description + details
+    const { name, price, image, create_user } = product;
+
+    if (!name || typeof name !== "string" || name.trim() === "") {
+      return res
+        .status(400)
+        .json({ success: false, message: "Product name is required." });
+    }
+
+    if (price === undefined || isNaN(Number(price))) {
+      return res.status(400).json({
+        success: false,
+        message: "Product price is required and must be a number.",
+      });
+    }
+
+    if (!create_user || typeof create_user !== "number") {
+      return res.status(400).json({
+        success: false,
+        message: "create_user must be a valid number.",
+      });
+    }
+
     const details = product_description?.[0] || {};
     const descriptionData = details.description || {};
     const detailFields = details.details || {};
@@ -208,109 +291,100 @@ const createProduct = async (req, res) => {
       how_to_use: detailFields.how_to_use || null,
       warnings: detailFields.warnings || null,
       storage: detailFields.storage || null,
-      manufacturer: detailFields.manufacturer || null
+      manufacturer: detailFields.manufacturer || null,
+      create_date: new Date(),
+      update_date: new Date(),
+      status_flag: 1,
     };
 
-    // Insert product
     const newProduct = await Product.create(fullProduct);
     const productId = newProduct.id;
 
-    // Insert reviews (if any)
     let insertedReviews = 0;
-    if (reviews.length > 0) {
-      const reviewData = reviews.map(r => ({
-        ...r,
-        product_id: productId
-      }));
-
+    if (Array.isArray(reviews) && reviews.length > 0) {
+      const reviewData = reviews
+        .filter((r) => r.user_name && typeof r.rating === "number")
+        .map((r) => ({ ...r, product_id: productId }));
       await ProductReview.bulkCreate(reviewData);
-      insertedReviews = reviews.length;
+      insertedReviews = reviewData.length;
     }
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Product created successfully",
       result: 1,
-      data: {
-        product_id: productId,
-        reviews_inserted: insertedReviews
-      }
+      data: { product_id: productId, reviews_inserted: insertedReviews },
     });
   } catch (error) {
-    console.error("Error creating product:", error);
-
-    if (error.name === "SequelizeValidationError") {
-      return res.status(400).json({
-        success: false,
-        message: "Validation failed",
-        errors: error.errors.map(e => e.message)
-      });
-    }
-
+    console.error("Error creating product:", error.message);
     res.status(500).json({
       success: false,
       message: "Product creation failed",
-      error: error.message
+      error: error.message,
     });
   }
 };
 
-
-
-// GET ALL Products in Nested Format
+// GET ALL Products
 const getAllProducts = async (req, res) => {
   try {
-    const { id, role } = req.user; // from authenticate middleware
+    const { id, role } = req.user;
 
     const products = await Product.findAll({
-      include: [{ model: ProductReview, as: 'reviews' }]
+      where: { status_flag: 1 },
+      include: [{ model: ProductReview, as: "reviews" }],
     });
 
-    const formatted = products.map((product) => {
-      const userRoleField =
-        role === 'admin' ? { admin_id: id } :
-        role === 'doctor' ? { doctor_id: id } :
-        { patient_id: id };
+    const formatted = products.map((product) => ({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      reviews: product.reviews || [],
+    }));
 
-      return {
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.image,
-        ...userRoleField,
-        reviews: product.reviews || []
-      };
-    });
+    const userRoleField =
+      role === "admin"
+        ? { admin_id: id }
+        : role === "doctor"
+        ? { doctor_id: id }
+        : { patient_id: id };
 
     res.status(200).json({
       success: true,
+      ...userRoleField,
       message: "Products fetched successfully",
       result: formatted.length,
-      data: formatted
+      data: formatted,
     });
   } catch (err) {
     console.error("Error fetching products:", err.message);
-
     res.status(500).json({
       success: false,
       message: "Error retrieving products",
-      error: err.message
+      error: err.message,
     });
   }
 };
 
-// GET Product By ID in Nested Format
+// GET Product by ID
 const getProductById = async (req, res) => {
   try {
-    const product = await Product.findByPk(req.params.id, {
-      include: [{ model: ProductReview, as: 'reviews' }]
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid product ID" });
+    }
+
+    const product = await Product.findByPk(id, {
+      include: [{ model: ProductReview, as: "reviews" }],
     });
 
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found"
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found" });
     }
 
     const formatted = {
@@ -318,37 +392,38 @@ const getProductById = async (req, res) => {
         id: product.id,
         name: product.name,
         price: product.price,
-        image: product.image
+        image: product.image,
       },
       product_description: [
         {
           description: {
             description: product.description,
-            benefit: product.benefit
+            benefit: product.benefit,
           },
           details: {
             ingredients: product.ingredients,
             how_to_use: product.how_to_use,
             warnings: product.warnings,
             storage: product.storage,
-            manufacturer: product.manufacturer
+            manufacturer: product.manufacturer,
           },
-          review: product.reviews || []
-        }
-      ]
+          review: product.reviews || [],
+        },
+      ],
     };
 
     res.status(200).json({
       success: true,
       message: "Product retrieved successfully",
       result: 1,
-      data: formatted
+      data: formatted,
     });
   } catch (err) {
+    console.error("Error fetching product:", err.message);
     res.status(500).json({
       success: false,
       message: "Error retrieving product",
-      error: err.message
+      error: err.message,
     });
   }
 };
@@ -356,22 +431,26 @@ const getProductById = async (req, res) => {
 // UPDATE Product
 const updateProduct = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = Number(req.params.id);
     const { product, product_description } = req.body;
 
-    if (!product) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing product data'
-      });
+    if (isNaN(id)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid product ID" });
+    }
+
+    if (!product || typeof product !== "object") {
+      return res
+        .status(400)
+        .json({ success: false, message: "Product data must be provided" });
     }
 
     const existingProduct = await Product.findByPk(id);
     if (!existingProduct) {
-      return res.status(404).json({
-        success: false,
-        message: 'Product not found'
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found" });
     }
 
     const desc = product_description?.[0]?.description || {};
@@ -386,98 +465,147 @@ const updateProduct = async (req, res) => {
       warnings: details.warnings || null,
       storage: details.storage || null,
       manufacturer: details.manufacturer || null,
-      update_date: new Date()
+      update_date: new Date(),
     };
 
     await existingProduct.update(updateData);
 
     res.status(200).json({
       success: true,
-      message: 'Product updated successfully',
+      message: "Product updated successfully",
       result: 1,
-      data: {
-        updated_product: existingProduct
-      }
+      data: { updated_product: existingProduct },
     });
-
   } catch (err) {
     console.error("Error updating product:", err.message);
     res.status(500).json({
       success: false,
-      message: 'Error updating product',
-      error: err.message
-    });
-  }
-}; 
-
-// DELETE Product
-const deleteProduct = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const product = await Product.findByPk(id);
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-    await ProductReview.destroy({ where: { product_id: id } }); // Delete associated reviews
-    await product.destroy(); // Delete the product
-
-    // res.json({ message: 'Product deleted successfully' });
-    res.status(200).json({
-      success: true,
-      message: 'Product deleted successfully',
-      data: {
-        product_id: id,
-      }
-    });
-  } catch (err) {
-    console.error('Error deleting product:', err.message);
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting product',
-      error: err.message
+      message: "Error updating product",
+      error: err.message,
     });
   }
 };
 
-// EDIT Product - Get product for editing
-const editProduct = async (req, res) => {
+// DELETE Product
+const deleteProduct = async (req, res) => {
   try {
-    const product = await Product.findByPk(req.params.id);
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid product ID" });
     }
 
-    res.json({ product });
+    const product = await Product.findByPk(id);
+    if (!product) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found" });
+    }
+
+    await ProductReview.destroy({ where: { product_id: id } });
+    await product.destroy();
+
+    res.status(200).json({
+      success: true,
+      message: "Product deleted successfully",
+      data: { product_id: id },
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Error retrieving product for edit', error: err.message });
+    console.error("Error deleting product:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting product",
+      error: err.message,
+    });
+  }
+};
+
+// EDIT Product (Get for update)
+const editProduct = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid product ID" });
+    }
+
+    const product = await Product.findByPk(id);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Product data fetched successfully",
+      data: product,
+    });
+  } catch (err) {
+    console.error("Error fetching product for edit:", err.message);
+    res.status(500).json({
+      message: "Error retrieving product for edit",
+      error: err.message,
+    });
   }
 };
 
 // -------------------- AddTOCart CONTROLLERS --------------------
 
-// Add or update item in cart
+// ADD or UPDATE item in cart
 const addToCart = async (req, res) => {
-  const user_id = req.user.id; // From token
+  const user_id = req.user.id;
   const { product_id, name, image, price, quantity, create_user } = req.body;
 
   try {
+    // Validation
+    if (!product_id || isNaN(Number(product_id))) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Valid product_id is required." });
+    }
+    if (!name || typeof name !== "string" || name.trim() === "") {
+      return res
+        .status(400)
+        .json({ success: false, message: "Product name is required." });
+    }
+    if (price === undefined || isNaN(Number(price))) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Valid price is required." });
+    }
+    if (
+      quantity === undefined ||
+      isNaN(Number(quantity)) ||
+      Number(quantity) <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Quantity must be a positive number.",
+        });
+    }
+    if (!create_user || isNaN(Number(create_user))) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Valid create_user is required." });
+    }
+
     const existingItem = await Cart.findOne({
-      where: { user_id, product_id, status_flag: 1 }
+      where: { user_id, product_id, status_flag: 1 },
     });
 
     if (existingItem) {
-      existingItem.quantity += quantity;
+      existingItem.quantity += Number(quantity);
       existingItem.update_user = create_user;
       existingItem.update_date = new Date();
       await existingItem.save();
 
       return res.status(200).json({
         success: true,
+        user_id,
         message: "Cart item updated",
         result: 1,
-        data: existingItem
+        data: existingItem,
       });
     }
 
@@ -485,75 +613,95 @@ const addToCart = async (req, res) => {
       user_id,
       product_id,
       name,
-      image,
-      price,
-      quantity,
+      image: image || null,
+      price: Number(price),
+      quantity: Number(quantity),
       create_user,
       update_user: create_user,
       create_date: new Date(),
       update_date: new Date(),
-      status_flag: 1
+      status_flag: 1,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
+      user_id,
       message: "Item added to cart",
       result: 1,
-      data: newItem
+      data: newItem,
     });
   } catch (err) {
     console.error("Add to cart error:", err.message);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to add item to cart",
-      error: err.message
+      error: err.message,
     });
   }
 };
 
-// Get all cart items for the authenticated user
+// GET all cart items for the authenticated user
 const getCart = async (req, res) => {
   try {
     const user_id = req.user.id;
 
     const cartItems = await Cart.findAll({
-      where: {
-        user_id,
-        status_flag: 1
-      }
+      where: { user_id, status_flag: 1 },
     });
 
     res.status(200).json({
       success: true,
       message: "Cart items fetched successfully",
       result: cartItems.length,
-      data: cartItems
+      data: cartItems,
     });
   } catch (err) {
     console.error("Error fetching cart:", err.message);
     res.status(500).json({
       success: false,
       message: "Failed to fetch cart items",
-      error: err.message
+      error: err.message,
     });
   }
 };
 
-// Update cart item quantity
+// UPDATE cart item quantity
 const updateCartItem = async (req, res) => {
   const { id, quantity, update_user } = req.body;
 
   try {
-    const item = await Cart.findByPk(id);
-
-    if (!item || item.status_flag !== 1) {
-      return res.status(404).json({
-        success: false,
-        message: "Cart item not found"
-      });
+    // Validation
+    if (!id || isNaN(Number(id))) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Valid cart item ID is required." });
+    }
+    if (
+      quantity === undefined ||
+      isNaN(Number(quantity)) ||
+      Number(quantity) <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Quantity must be a positive number.",
+        });
+    }
+    if (!update_user || isNaN(Number(update_user))) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Valid update_user is required." });
     }
 
-    item.quantity = quantity;
+    const item = await Cart.findByPk(id);
+    if (!item || item.status_flag !== 1) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Cart item not found" });
+    }
+
+    item.quantity = Number(quantity);
     item.update_user = update_user;
     item.update_date = new Date();
     await item.save();
@@ -562,30 +710,34 @@ const updateCartItem = async (req, res) => {
       success: true,
       message: "Cart item updated successfully",
       result: 1,
-      data: item
+      data: item,
     });
   } catch (err) {
     console.error("Error updating cart item:", err.message);
     res.status(500).json({
       success: false,
       message: "Failed to update cart item",
-      error: err.message
+      error: err.message,
     });
   }
 };
 
-// Soft delete cart item
+// DELETE (soft delete) cart item
 const deleteCartItem = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const item = await Cart.findByPk(id);
+    if (!id || isNaN(Number(id))) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Valid cart item ID is required." });
+    }
 
+    const item = await Cart.findByPk(id);
     if (!item || item.status_flag !== 1) {
-      return res.status(404).json({
-        success: false,
-        message: "Cart item not found"
-      });
+      return res
+        .status(404)
+        .json({ success: false, message: "Cart item not found" });
     }
 
     item.status_flag = 0;
@@ -599,41 +751,41 @@ const deleteCartItem = async (req, res) => {
       data: {
         id: item.id,
         status_flag: item.status_flag,
-        update_date: item.update_date
-      }
+        update_date: item.update_date,
+      },
     });
   } catch (err) {
     console.error("Error removing item from cart:", err.message);
     res.status(500).json({
       success: false,
       message: "Failed to remove item from cart",
-      error: err.message
+      error: err.message,
     });
   }
 };
 
-// Get all active products
-const getHospitalProducts = async (req, res) => {
-  try {
-    const products = await HospitalProduct.findAll({
-      where: { status_flag: 1 }
-    });
+// // Get all active products
+// const getHospitalProducts = async (req, res) => {
+//   try {
+//     const products = await HospitalProduct.findAll({
+//       where: { status_flag: 1 },
+//     });
 
-    res.status(200).json({
-      success: true,
-      message: "Hospital products fetched successfully",
-      result: products.length,
-      data: products
-    });
-  } catch (err) {
-    console.error("Error fetching hospital products:", err.message);
-    res.status(500).json({
-      success: false,
-      message: "Server error while fetching hospital products",
-      error: err.message
-    });
-  }
-};
+//     res.status(200).json({
+//       success: true,
+//       message: "Hospital products fetched successfully",
+//       result: products.length,
+//       data: products,
+//     });
+//   } catch (err) {
+//     console.error("Error fetching hospital products:", err.message);
+//     res.status(500).json({
+//       success: false,
+//       message: "Server error while fetching hospital products",
+//       error: err.message,
+//     });
+//   }
+// };
 
 module.exports = {
   getAllStores,
@@ -652,5 +804,5 @@ module.exports = {
   getCart,
   updateCartItem,
   deleteCartItem,
-   getHospitalProducts
+  // getHospitalProducts,
 };

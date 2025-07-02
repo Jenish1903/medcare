@@ -1,0 +1,1155 @@
+-- tbl_user store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_user (
+  IN p_name VARCHAR(100),
+  IN p_email VARCHAR(100),
+  IN p_phone VARCHAR(15),
+  IN p_gender VARCHAR(10),
+  IN p_dob DATE,
+  IN p_password VARCHAR(255),
+  IN p_role ENUM('admin','doctor','patient'),
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_user (
+    name, email, phone, gender, dob, password, role, create_user, update_user
+  ) VALUES (
+    p_name, p_email, p_phone, p_gender, p_dob, p_password, p_role, p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_users()
+BEGIN
+  SELECT * FROM tbl_user WHERE status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_user_by_id(IN p_id INT)
+BEGIN
+  SELECT * FROM tbl_user WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_update_user (
+  IN p_id INT,
+  IN p_name VARCHAR(100),
+  IN p_phone VARCHAR(15),
+  IN p_gender VARCHAR(10),
+  IN p_dob DATE,
+  IN p_role ENUM('admin','doctor','patient'),
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_user
+  SET
+    name = p_name,
+    phone = p_phone,
+    gender = p_gender,
+    dob = p_dob,
+    role = p_role,
+    update_user = p_update_user
+  WHERE id = p_id;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_user(IN p_id INT, IN p_update_user INT)
+BEGIN
+  UPDATE tbl_user
+  SET status_flag = 0, update_user = p_update_user
+  WHERE id = p_id;
+END;
+//
+DELIMITER ;
+
+-- tbl_store store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_store (
+  IN p_name VARCHAR(100),
+  IN p_logo VARCHAR(255),
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_store (
+    name, logo, create_user, update_user
+  ) VALUES (
+    p_name, p_logo, p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_stores()
+BEGIN
+  SELECT * FROM tbl_store WHERE status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_store_by_id(IN p_id INT)
+BEGIN
+  SELECT * FROM tbl_store WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_update_store (
+  IN p_id INT,
+  IN p_name VARCHAR(100),
+  IN p_logo VARCHAR(255),
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_store
+  SET
+    name = p_name,
+    logo = p_logo,
+    update_user = p_update_user
+  WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_store (
+  IN p_id INT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_store
+  SET
+    status_flag = 0,
+    update_user = p_update_user
+  WHERE id = p_id;
+END;
+//
+DELIMITER ;
+
+-- tbl_filter_categories store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_filter_category (
+  IN p_name VARCHAR(100),
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_filter_categories (
+    name, create_user, update_user
+  ) VALUES (
+    p_name, p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_filter_categories()
+BEGIN
+  SELECT * FROM tbl_filter_categories WHERE status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_filter_category_by_id(IN p_id INT)
+BEGIN
+  SELECT * FROM tbl_filter_categories WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_update_filter_category (
+  IN p_id INT,
+  IN p_name VARCHAR(100),
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_filter_categories
+  SET
+    name = p_name,
+    update_user = p_update_user
+  WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_filter_category (
+  IN p_id INT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_filter_categories
+  SET
+    status_flag = 0,
+    update_user = p_update_user
+  WHERE id = p_id;
+END;
+//
+DELIMITER ;
+
+-- tbl_product store procedure --
+
+-- DROP existing procedures (optional cleanup)
+DROP PROCEDURE IF EXISTS sp_insert_product;
+DROP PROCEDURE IF EXISTS sp_get_all_products;
+DROP PROCEDURE IF EXISTS sp_get_product_by_id;
+DROP PROCEDURE IF EXISTS sp_update_product;
+DROP PROCEDURE IF EXISTS sp_delete_product;
+
+-- Create Product
+DELIMITER //
+CREATE PROCEDURE sp_insert_product (
+  IN p_name VARCHAR(255),
+  IN p_price DECIMAL(10,2),
+  IN p_image VARCHAR(500),
+  IN p_description TEXT,
+  IN p_benefits TEXT,
+  IN p_ingredients TEXT,
+  IN p_how_to_use TEXT,
+  IN p_warnings TEXT,
+  IN p_storage VARCHAR(255),
+  IN p_manufacturer VARCHAR(255),
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_product (
+    name, price, image, description, benefits, ingredients,
+    how_to_use, warnings, storage, manufacturer,
+    create_user, update_user
+  ) VALUES (
+    p_name, p_price, p_image, p_description, p_benefits, p_ingredients,
+    p_how_to_use, p_warnings, p_storage, p_manufacturer,
+    p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+-- Get All Products (Active Only)
+DELIMITER //
+CREATE PROCEDURE sp_get_all_products()
+BEGIN
+  SELECT * FROM tbl_product WHERE status_flag = 1;
+END;
+//
+DELIMITER ;
+
+-- Get Product By ID
+DELIMITER //
+CREATE PROCEDURE sp_get_product_by_id(IN p_id INT)
+BEGIN
+  SELECT * FROM tbl_product WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+-- Update Product
+DELIMITER //
+CREATE PROCEDURE sp_update_product (
+  IN p_id INT,
+  IN p_name VARCHAR(255),
+  IN p_price DECIMAL(10,2),
+  IN p_image VARCHAR(500),
+  IN p_description TEXT,
+  IN p_benefits TEXT,
+  IN p_ingredients TEXT,
+  IN p_how_to_use TEXT,
+  IN p_warnings TEXT,
+  IN p_storage VARCHAR(255),
+  IN p_manufacturer VARCHAR(255),
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_product
+  SET
+    name = p_name,
+    price = p_price,
+    image = p_image,
+    description = p_description,
+    benefits = p_benefits,
+    ingredients = p_ingredients,
+    how_to_use = p_how_to_use,
+    warnings = p_warnings,
+    storage = p_storage,
+    manufacturer = p_manufacturer,
+    update_user = p_update_user
+  WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+-- Soft Delete Product
+DELIMITER //
+CREATE PROCEDURE sp_delete_product (
+  IN p_id INT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_product
+  SET
+    status_flag = 0,
+    update_user = p_update_user
+  WHERE id = p_id;
+END;
+//
+DELIMITER ;
+
+-- tbl_product_review store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_product_review (
+  IN p_product_id INT,
+  IN p_image VARCHAR(500),
+  IN p_name VARCHAR(100),
+  IN p_rating INT,
+  IN p_comment TEXT,
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_product_review (
+    product_id, image, name, rating, comment,
+    create_user, update_user
+  )
+  VALUES (
+    p_product_id, p_image, p_name, p_rating, p_comment,
+    p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_product_reviews()
+BEGIN
+  SELECT * FROM tbl_product_review WHERE status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_reviews_by_product_id(IN p_product_id INT)
+BEGIN
+  SELECT * FROM tbl_product_review
+  WHERE product_id = p_product_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_update_product_review (
+  IN p_id INT,
+  IN p_image VARCHAR(500),
+  IN p_name VARCHAR(100),
+  IN p_rating INT,
+  IN p_comment TEXT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_product_review
+  SET
+    image = p_image,
+    name = p_name,
+    rating = p_rating,
+    comment = p_comment,
+    update_user = p_update_user
+  WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_product_review (
+  IN p_id INT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_product_review
+  SET
+    status_flag = 0,
+    update_user = p_update_user
+  WHERE id = p_id;
+END;
+//
+DELIMITER ;
+
+-- tbl_cart_items store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_cart_item (
+  IN p_user_id INT,
+  IN p_product_id INT,
+  IN p_name VARCHAR(255),
+  IN p_image VARCHAR(255),
+  IN p_price DECIMAL(10,2),
+  IN p_quantity INT,
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_cart_items (
+    user_id, product_id, name, image, price, quantity,
+    create_user, update_user
+  ) VALUES (
+    p_user_id, p_product_id, p_name, p_image, p_price, p_quantity,
+    p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_cart_items()
+BEGIN
+  SELECT * FROM tbl_cart_items WHERE status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_cart_items_by_user(IN p_user_id INT)
+BEGIN
+  SELECT * FROM tbl_cart_items
+  WHERE user_id = p_user_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_update_cart_item (
+  IN p_id INT,
+  IN p_quantity INT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_cart_items
+  SET
+    quantity = p_quantity,
+    update_user = p_update_user
+  WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_cart_item (
+  IN p_id INT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_cart_items
+  SET
+    status_flag = 0,
+    update_user = p_update_user
+  WHERE id = p_id;
+END;
+//
+DELIMITER ;
+
+-- tbl_hospital_products store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_hospital_product (
+  IN p_name VARCHAR(100),
+  IN p_image TEXT,
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_hospital_products (
+    name, image, create_user, update_user
+  )
+  VALUES (
+    p_name, p_image, p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_hospital_products()
+BEGIN
+  SELECT * FROM tbl_hospital_products WHERE status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_hospital_product_by_id(IN p_id INT)
+BEGIN
+  SELECT * FROM tbl_hospital_products
+  WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_update_hospital_product (
+  IN p_id INT,
+  IN p_name VARCHAR(100),
+  IN p_image TEXT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_hospital_products
+  SET
+    name = p_name,
+    image = p_image,
+    update_user = p_update_user
+  WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_hospital_product (
+  IN p_id INT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_hospital_products
+  SET
+    status_flag = 0,
+    update_user = p_update_user
+  WHERE id = p_id;
+END;
+//
+DELIMITER ;
+
+-- tbl_services store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_service (
+  IN p_name VARCHAR(255),
+  IN p_image VARCHAR(255),
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_services (
+    name, image, create_user, update_user
+  )
+  VALUES (
+    p_name, p_image, p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_services()
+BEGIN
+  SELECT * FROM tbl_services WHERE status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_service_by_id(IN p_id INT)
+BEGIN
+  SELECT * FROM tbl_services WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_update_service (
+  IN p_id INT,
+  IN p_name VARCHAR(255),
+  IN p_image VARCHAR(255),
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_services
+  SET
+    name = p_name,
+    image = p_image,
+    update_user = p_update_user
+  WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_service (
+  IN p_id INT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_services
+  SET
+    status_flag = 0,
+    update_user = p_update_user
+  WHERE id = p_id;
+END;
+//
+DELIMITER ;
+
+-- tbl_doctors store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_doctor (
+  IN p_userId INT,
+  IN p_image VARCHAR(255),
+  IN p_specialist VARCHAR(255),
+  IN p_experience INT,
+  IN p_education VARCHAR(255),
+  IN p_license VARCHAR(255),
+  IN p_clinicName VARCHAR(255),
+  IN p_clinicLocation VARCHAR(255),
+  IN p_clinicPhoneNo VARCHAR(255),
+  IN p_workingHours TEXT,
+  IN p_availableDates TEXT,
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_doctors (
+    userId, image, specialist, experience, education, license,
+    clinicName, clinicLocation, clinicPhoneNo, workingHours, availableDates,
+    create_user, update_user
+  )
+  VALUES (
+    p_userId, p_image, p_specialist, p_experience, p_education, p_license,
+    p_clinicName, p_clinicLocation, p_clinicPhoneNo, p_workingHours, p_availableDates,
+    p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_doctors()
+BEGIN
+  SELECT * FROM tbl_doctors WHERE status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_doctor_by_user_id(IN p_userId INT)
+BEGIN
+  SELECT * FROM tbl_doctors
+  WHERE userId = p_userId AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_update_doctor (
+  IN p_userId INT,
+  IN p_image VARCHAR(255),
+  IN p_specialist VARCHAR(255),
+  IN p_experience INT,
+  IN p_education VARCHAR(255),
+  IN p_license VARCHAR(255),
+  IN p_clinicName VARCHAR(255),
+  IN p_clinicLocation VARCHAR(255),
+  IN p_clinicPhoneNo VARCHAR(255),
+  IN p_workingHours TEXT,
+  IN p_availableDates TEXT,
+  IN p_status TINYINT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_doctors
+  SET
+    image = p_image,
+    specialist = p_specialist,
+    experience = p_experience,
+    education = p_education,
+    license = p_license,
+    clinicName = p_clinicName,
+    clinicLocation = p_clinicLocation,
+    clinicPhoneNo = p_clinicPhoneNo,
+    workingHours = p_workingHours,
+    availableDates = p_availableDates,
+    status = p_status,
+    update_user = p_update_user
+  WHERE userId = p_userId AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_doctor (
+  IN p_userId INT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_doctors
+  SET
+    status_flag = 0,
+    update_user = p_update_user
+  WHERE userId = p_userId;
+END;
+//
+DELIMITER ;
+
+-- tbl_patients store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_patient (
+  IN p_userId INT,
+  IN p_bloodType VARCHAR(5),
+  IN p_medicalHistory TEXT,
+  IN p_emergencyContactName VARCHAR(100),
+  IN p_emergencyContactPhone VARCHAR(15),
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_patients (
+    userId, bloodType, medicalHistory, emergencyContactName, emergencyContactPhone,
+    create_user, update_user
+  )
+  VALUES (
+    p_userId, p_bloodType, p_medicalHistory, p_emergencyContactName, p_emergencyContactPhone,
+    p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_patients()
+BEGIN
+  SELECT * FROM tbl_patients WHERE status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_patient_by_user_id(IN p_userId INT)
+BEGIN
+  SELECT * FROM tbl_patients
+  WHERE userId = p_userId AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_update_patient (
+  IN p_userId INT,
+  IN p_bloodType VARCHAR(5),
+  IN p_medicalHistory TEXT,
+  IN p_emergencyContactName VARCHAR(100),
+  IN p_emergencyContactPhone VARCHAR(15),
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_patients
+  SET
+    bloodType = p_bloodType,
+    medicalHistory = p_medicalHistory,
+    emergencyContactName = p_emergencyContactName,
+    emergencyContactPhone = p_emergencyContactPhone,
+    update_user = p_update_user
+  WHERE userId = p_userId AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_patient (
+  IN p_userId INT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_patients
+  SET
+    status_flag = 0,
+    update_user = p_update_user
+  WHERE userId = p_userId;
+END;
+//
+DELIMITER ;
+
+-- tbl_chat_sessions store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_chat_session (
+  IN p_sessionId VARCHAR(41),
+  IN p_doctorId INT,
+  IN p_patientId INT,
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_chat_sessions (
+    sessionId, doctorId, patientId, isActive,
+    create_user, update_user
+  )
+  VALUES (
+    p_sessionId, p_doctorId, p_patientId, 1,
+    p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_chat_sessions()
+BEGIN
+  SELECT * FROM tbl_chat_sessions WHERE status_flag = 1 AND isActive = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_chat_session_by_id(IN p_sessionId VARCHAR(41))
+BEGIN
+  SELECT * FROM tbl_chat_sessions
+  WHERE sessionId = p_sessionId AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_end_chat_session (
+  IN p_sessionId VARCHAR(41),
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_chat_sessions
+  SET
+    isActive = 0,
+    ended_at = CURRENT_TIMESTAMP,
+    update_user = p_update_user
+  WHERE sessionId = p_sessionId AND isActive = 1 AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_chat_session (
+  IN p_sessionId VARCHAR(41),
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_chat_sessions
+  SET
+    status_flag = 0,
+    update_user = p_update_user
+  WHERE sessionId = p_sessionId;
+END;
+//
+DELIMITER ;
+
+-- tbl_chat_messages store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_chat_message (
+  IN p_messageId VARCHAR(41),
+  IN p_sessionId VARCHAR(41),
+  IN p_senderId INT,
+  IN p_message TEXT,
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_chat_messages (
+    messageId, sessionId, senderId, message,
+    create_user, update_user
+  )
+  VALUES (
+    p_messageId, p_sessionId, p_senderId, p_message,
+    p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_messages_by_session (
+  IN p_sessionId VARCHAR(41)
+)
+BEGIN
+  SELECT * FROM tbl_chat_messages
+  WHERE sessionId = p_sessionId AND status_flag = 1
+  ORDER BY timestamp ASC;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_message_by_id (
+  IN p_messageId VARCHAR(41)
+)
+BEGIN
+  SELECT * FROM tbl_chat_messages
+  WHERE messageId = p_messageId AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_update_chat_message (
+  IN p_messageId VARCHAR(41),
+  IN p_message TEXT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_chat_messages
+  SET
+    message = p_message,
+    update_user = p_update_user
+  WHERE messageId = p_messageId AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_chat_message (
+  IN p_messageId VARCHAR(41),
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_chat_messages
+  SET
+    status_flag = 0,
+    update_user = p_update_user
+  WHERE messageId = p_messageId;
+END;
+//
+DELIMITER ;
+
+-- tbl_appointments store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_appointment (
+  IN p_doctorId INT,
+  IN p_patientId INT,
+  IN p_appointmentDate DATE,
+  IN p_appointmentTime VARCHAR(10),
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_appointments (
+    doctorId, patientId, appointmentDate, appointmentTime,
+    status, create_user, update_user
+  )
+  VALUES (
+    p_doctorId, p_patientId, p_appointmentDate, p_appointmentTime,
+    'pending', p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_appointments()
+BEGIN
+  SELECT * FROM tbl_appointments WHERE status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_appointment_by_id(IN p_id INT)
+BEGIN
+  SELECT * FROM tbl_appointments WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_appointments_by_user (
+  IN p_userId INT,
+  IN p_role ENUM('doctor', 'patient')
+)
+BEGIN
+  IF p_role = 'doctor' THEN
+    SELECT * FROM tbl_appointments WHERE doctorId = p_userId AND status_flag = 1;
+  ELSE
+    SELECT * FROM tbl_appointments WHERE patientId = p_userId AND status_flag = 1;
+  END IF;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_update_appointment (
+  IN p_id INT,
+  IN p_status VARCHAR(50),
+  IN p_appointmentDate DATE,
+  IN p_appointmentTime VARCHAR(10),
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_appointments
+  SET
+    status = p_status,
+    appointmentDate = p_appointmentDate,
+    appointmentTime = p_appointmentTime,
+    update_user = p_update_user
+  WHERE id = p_id AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_appointment (
+  IN p_id INT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_appointments
+  SET
+    status_flag = 0,
+    update_user = p_update_user
+  WHERE id = p_id;
+END;
+//
+DELIMITER ;
+
+-- tbl_doctor_reviews store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_doctor_review (
+  IN p_reviewId VARCHAR(36),
+  IN p_doctorId INT,
+  IN p_patientId INT,
+  IN p_rating INT,
+  IN p_comment TEXT,
+  IN p_create_user INT
+)
+BEGIN
+  INSERT INTO tbl_doctor_reviews (
+    reviewId, doctorId, patientId, rating, comment,
+    create_user, update_user
+  )
+  VALUES (
+    p_reviewId, p_doctorId, p_patientId, p_rating, p_comment,
+    p_create_user, p_create_user
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_doctor_reviews()
+BEGIN
+  SELECT * FROM tbl_doctor_reviews WHERE status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_reviews_by_doctor (
+  IN p_doctorId INT
+)
+BEGIN
+  SELECT * FROM tbl_doctor_reviews
+  WHERE doctorId = p_doctorId AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_update_doctor_review (
+  IN p_reviewId VARCHAR(36),
+  IN p_rating INT,
+  IN p_comment TEXT,
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_doctor_reviews
+  SET
+    rating = p_rating,
+    comment = p_comment,
+    update_user = p_update_user
+  WHERE reviewId = p_reviewId AND status_flag = 1;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_doctor_review (
+  IN p_reviewId VARCHAR(36),
+  IN p_update_user INT
+)
+BEGIN
+  UPDATE tbl_doctor_reviews
+  SET
+    status_flag = 0,
+    update_user = p_update_user
+  WHERE reviewId = p_reviewId;
+END;
+//
+DELIMITER ;
+
+-- tbl_calls store procedure --
+
+DELIMITER //
+CREATE PROCEDURE sp_insert_call (
+  IN p_callId VARCHAR(255),
+  IN p_sessionId VARCHAR(255),
+  IN p_callerId INT,
+  IN p_calleeId VARCHAR(255),
+  IN p_type ENUM('video', 'audio'),
+  IN p_status ENUM('calling','ringing','active','ended','failed','cancelled'),
+  IN p_rtcToken TEXT
+)
+BEGIN
+  INSERT INTO tbl_calls (
+    callId, sessionId, callerId, calleeId,
+    type, status, rtcToken
+  )
+  VALUES (
+    p_callId, p_sessionId, p_callerId, p_calleeId,
+    p_type, p_status, p_rtcToken
+  );
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_calls()
+BEGIN
+  SELECT * FROM tbl_calls;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_call_by_id(IN p_callId VARCHAR(255))
+BEGIN
+  SELECT * FROM tbl_calls WHERE callId = p_callId;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_update_call_status (
+  IN p_callId VARCHAR(255),
+  IN p_status ENUM('calling','ringing','active','ended','failed','cancelled'),
+  IN p_rtcToken TEXT
+)
+BEGIN
+  UPDATE tbl_calls
+  SET
+    status = p_status,
+    rtcToken = p_rtcToken,
+    updated_at = CURRENT_TIMESTAMP
+  WHERE callId = p_callId;
+END;
+//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_call (
+  IN p_callId VARCHAR(255)
+)
+BEGIN
+  DELETE FROM tbl_calls WHERE callId = p_callId;
+END;
+//
+DELIMITER ;
