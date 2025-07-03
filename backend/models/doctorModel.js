@@ -1,867 +1,513 @@
+/* The class `DoctorRepository` contains methods for interacting with the `DoctorModel` in a database,
+including creating, updating, fetching, and managing doctor profiles. */
 // D:\medicare\backend\models\doctorModel.js
-const pool = require('../config/db');
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/sequelize');
 const moment = require('moment');
+const { UserModel } = require('./userModel');
 
-class Doctor {
-    static async getAllDoctors(status, limit = 10, offset = 0) {
-        let connection;
+const DoctorModel = sequelize.define('tbl_doctors', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+    },
+    userId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        unique: true,
+        references: {
+            model: 'tbl_user',
+            key: 'id',
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE'
+    },
+    image: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+    },
+    specialist: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+    },
+    experience: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0,
+    },
+    reviews: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0,
+    },
+    education: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+    },
+    license: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+    },
+    clinicName: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+    },
+    clinicLocation: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+    },
+    clinicPhoneNo: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+    },
+    appointmentBookingTime: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        get() {
+            const rawValue = this.getDataValue('appointmentBookingTime');
+            return rawValue ? JSON.parse(rawValue) : [];
+        },
+        set(value) {
+            this.setDataValue('appointmentBookingTime', JSON.stringify(value));
+        }
+    },
+    availableDates: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        get() {
+            const rawValue = this.getDataValue('availableDates');
+            if (!rawValue) return [];
+            try {
+                const dates = JSON.parse(rawValue);
+                return dates.filter(dateStr => moment(dateStr, 'YYYY-MM-DD', true).isSameOrAfter(moment(), 'day'));
+            } catch (e) {
+                console.error('Error parsing availableDates JSON from DB for DoctorModel:', e);
+                return [];
+            }
+        },
+        set(value) {
+            this.setDataValue('availableDates', JSON.stringify(value));
+        }
+    },
+    status: {
+        type: DataTypes.TINYINT,
+        allowNull: true,
+        defaultValue: 0,
+    },
+    status_flag: {
+        type: DataTypes.TINYINT,
+        allowNull: false,
+        defaultValue: 1,
+    },
+    create_date: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+        allowNull: false,
+    },
+    update_date: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+        allowNull: false,
+    },
+    create_user: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
+    update_user: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
+}, {
+    tableName: 'tbl_doctors',
+    timestamps: false,
+});
+
+
+class DoctorRepository {
+    static async createDoctor(doctorData) {
         try {
-            connection = await pool.getConnection();
-            let query = `
-                SELECT
-                    td.userId AS doctorId,
-                    td.image,
-                    tu.name,
-                    td.specialist,
-                    td.experience,
-                    td.availableDates,
-                    td.status,
-                    td.reviews
-                FROM
-                    tbl_doctors td
-                JOIN
-                    tbl_user tu ON td.userId = tu.id
-                WHERE
-                    td.status_flag = 1
-            `;
-            const params = [];
-
-            if (status !== undefined && status !== null) {
-                query += ` AND td.status = ?`;
-                params.push(status);
+            const user = await UserModel.findByPk(doctorData.userId);
+            if (!user || user.role !== 'doctor') {
+                throw new Error('User not found or not registered as a doctor.');
             }
 
-            query += ` LIMIT ? OFFSET ?`;
-            params.push(limit, offset);
+            const newDoctor = await DoctorModel.create({
+                ...doctorData,
+                create_date: DataTypes.NOW,
+                update_date: DataTypes.NOW
+            });
+            return newDoctor.toJSON();
+        } catch (error) {
+            console.error('Error creating doctor profile:', error);
+            if (error.name === 'SequelizeUniqueConstraintError') {
+                throw new Error('Doctor profile already exists for this user.');
+            }
+            throw new Error(`Failed to create doctor profile: ${error.message}`);
+        }
+    }
 
-            const [rows] = await connection.query(query, params);
+    static async getAllDoctors(status, limit = 10, offset = 0) {
+        try {
+            const whereClause = {
+                status_flag: 1,
+            };
+            if (status !== undefined && status !== null) {
+                whereClause.status = status;
+            }
 
-            return rows.map(doctor => {
-                if (doctor.availableDates) {
-                    try {
-                        doctor.availableDates = JSON.parse(doctor.availableDates);
-                        doctor.availableDates = doctor.availableDates.filter(dateStr => moment(dateStr).isSameOrAfter(moment(), 'day'));
-                    } catch (e) {
-                        console.error('Error parsing availableDates JSON for doctor list:', e);
-                        doctor.availableDates = [];
+            const doctors = await DoctorModel.findAll({
+                where: whereClause,
+                attributes: [
+                    'userId', 'image', 'specialist', 'experience', 'reviews', 'availableDates', 'status'
+                ],
+                include: [
+                    {
+                        model: UserModel,
+                        as: 'userInfo',
+                        attributes: ['name'],
+                        required: true
                     }
-                } else {
-                    doctor.availableDates = [];
-                }
-                return doctor;
+                ],
+                order: [['userInfo', 'name', 'ASC']],
+                limit: limit,
+                offset: offset
+            });
+
+            return doctors.map(doctor => {
+                const doc = doctor.toJSON();
+                doc.doctorId = doc.userId;
+                doc.name = doc.userInfo.name;
+                delete doc.userId;
+                delete doc.userInfo;
+                return doc;
             });
         } catch (error) {
             console.error('Database Query Error (getAllDoctors):', error);
             throw new Error(`Error fetching doctors: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
         }
     }
 
     static async getDoctorById(doctorId) {
-        let connection;
         try {
-            connection = await pool.getConnection();
-            const [rows] = await connection.query(
-                `SELECT
-                    td.userId AS doctorId,
-                    tu.name,
-                    td.specialist AS specialty,
-                    td.experience,
-                    td.reviews,
-                    td.education,
-                    td.license,
-                    td.clinicName,
-                    td.clinicLocation,
-                    td.clinicPhoneNo,
-                    td.workingHours,
-                    td.availableDates
-                FROM
-                    tbl_doctors td
-                JOIN
-                    tbl_user tu ON td.userId = tu.id
-                WHERE
-                    td.userId = ? AND td.status_flag = 1`,
-                [doctorId]
-            );
+            const doctor = await DoctorModel.findOne({
+                where: { userId: doctorId, status_flag: 1 },
+                include: [
+                    {
+                        model: UserModel,
+                        as: 'userInfo',
+                        attributes: ['name', 'email', 'phone', 'gender', 'dob'],
+                        required: true
+                    }
+                ],
+                attributes: { exclude: ['id', 'create_date', 'update_date', 'create_user', 'update_user'] } 
+            });
 
-            if (rows.length === 0) {
+            if (!doctor) {
                 return null;
             }
 
-            const doctor = rows[0];
+            const doc = doctor.toJSON();
+            doc.doctorId = doc.userId;
+            doc.name = doc.userInfo.name;
+            doc.email = doc.userInfo.email;
+            doc.phone = doc.userInfo.phone;
+            doc.gender = doc.userInfo.gender;
+            doc.dob = doc.userInfo.dob;
+            doc.specialty = doc.specialist;
+            doc.onlineStatus = doc.status;
+            doc.experience = doc.experience ? doc.experience.toString() : "0";
+            doc.reviews = doc.reviews ? doc.reviews.toString() : "0";
 
-            if (doctor.workingHours) {
-                try {
-                    doctor.workingHours = JSON.parse(doctor.workingHours);
-                } catch (e) {
-                    console.error('Error parsing workingHours JSON:', e);
-                    doctor.workingHours = [];
-                }
-            } else {
-                doctor.workingHours = [];
-            }
+            delete doc.userId;
+            delete doc.userInfo;
+            delete doc.specialist;
+            delete doc.status;
 
-            if (doctor.availableDates) {
-                try {
-                    doctor.availableDates = JSON.parse(doctor.availableDates);
-                    doctor.availableDates = doctor.availableDates.filter(dateStr => moment(dateStr).isSameOrAfter(moment(), 'day'));
-                } catch (e) {
-                    console.error('Error parsing availableDates JSON:', e);
-                    doctor.availableDates = [];
-                }
-            } else {
-                doctor.availableDates = [];
-            }
-
-            doctor.experience = doctor.experience ? doctor.experience.toString() : "0";
-            doctor.reviews = doctor.reviews ? doctor.reviews.toString() : "0";
-
-            return doctor;
+            return doc;
         } catch (error) {
             console.error('Database Query Error (getDoctorById):', error);
             throw new Error(`Error fetching doctor details: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
+        }
+    }
+
+    static async updateDoctorProfile(doctorId, updates, updatedByUserId) {
+        try {
+            if (updates.appointmentBookingTime) {
+                updates.appointmentBookingTime = JSON.stringify(updates.appointmentBookingTime);
+            }
+            if (updates.availableDates) {
+                updates.availableDates = JSON.stringify(updates.availableDates);
+            }
+
+            updates.update_date = new Date();
+            updates.update_user = updatedByUserId;
+
+            const [affectedRows] = await DoctorModel.update(updates, {
+                where: { userId: doctorId, status_flag: 1 }
+            });
+
+            return affectedRows > 0;
+        } catch (error) {
+            console.error('Error updating doctor profile:', error);
+            throw new Error(`Failed to update doctor profile: ${error.message}`);
         }
     }
 
     static async getAvailableSlotsForDate(doctorId, dateString) {
-        let connection;
         try {
-            connection = await pool.getConnection();
+            const doctor = await DoctorModel.findOne({
+                where: { userId: doctorId, status_flag: 1 },
+                attributes: ['appointmentBookingTime', 'availableDates'] // Changed from workingHours
+            });
 
-            const [doctorRows] = await connection.query(
-                `SELECT workingHours, availableDates FROM tbl_doctors WHERE userId = ? AND status_flag = 1`,
-                [doctorId]
-            );
-
-            if (doctorRows.length === 0) {
+            if (!doctor) {
                 throw new Error('Doctor not found or not active.');
             }
 
-            const doctor = doctorRows[0];
-            let standardWorkingHours = [];
-            let availableDates = [];
-
-            if (doctor.workingHours) {
-                try {
-                    standardWorkingHours = JSON.parse(doctor.workingHours);
-                } catch (e) {
-                    console.error('Error parsing doctor workingHours:', e);
-                }
-            }
-            if (doctor.availableDates) {
-                try {
-                    availableDates = JSON.parse(doctor.availableDates);
-                } catch (e) {
-                    console.error('Error parsing doctor availableDates:', e);
-                }
-            }
-
+            const standardAppointmentBookingTime = doctor.appointmentBookingTime; // Changed from workingHours
+            const availableDates = doctor.availableDates;
             const requestedDateMoment = moment(dateString, 'YYYY-MM-DD', true);
-            if (!requestedDateMoment.isValid() || !availableDates.includes(dateString) || requestedDateMoment.isBefore(moment(), 'day')) {
+            if (!requestedDateMoment.isValid()) {
+                throw new Error('Invalid date format provided. Must be YYYY-MM-DD.');
+            }
+            if (!availableDates.includes(dateString)) {
+                return [];
+            }
+            if (requestedDateMoment.isBefore(moment(), 'day')) {
                 return [];
             }
 
-            const [bookedSlotsRows] = await connection.query(
-                `SELECT appointmentTime FROM tbl_appointments WHERE doctorId = ? AND appointmentDate = ? AND status = 'scheduled'`,
-                [doctorId, dateString]
-            );
+            const { AppointmentModel } = require('./appointmentModel');
 
-            const bookedSlots = bookedSlotsRows.map(row => row.appointmentTime);
+            const bookedSlots = await AppointmentModel.findAll({
+                where: {
+                    doctorId: doctorId,
+                    appointmentDate: dateString,
+                    status: ['scheduled', 'confirmed', 'pending'],
+                    status_flag: 1
+                },
+                attributes: ['appointmentTime']
+            });
 
-            const availableSlots = standardWorkingHours.filter(slot => !bookedSlots.includes(slot));
+            const bookedTimes = bookedSlots.map(slot => slot.appointmentTime);
+
+            const availableSlots = standardAppointmentBookingTime.filter(slot => { // Changed from workingHours
+                const slotMoment = moment(slot, 'hh:mm A');
+                if (requestedDateMoment.isSame(moment(), 'day')) {
+                    return !bookedTimes.includes(slot) && slotMoment.isAfter(moment());
+                }
+                return !bookedTimes.includes(slot);
+            });
 
             return availableSlots;
 
         } catch (error) {
             console.error('Database Query Error (getAvailableSlotsForDate):', error);
             throw new Error(`Error fetching available slots: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
         }
     }
 
     static async updateDoctorAvailableDates(doctorId, daysAhead = 60) {
-        let connection;
         try {
-            connection = await pool.getConnection();
-
             const futureDates = [];
             for (let i = 0; i < daysAhead; i++) {
                 futureDates.push(moment().add(i, 'days').format('YYYY-MM-DD'));
             }
 
-            const updatedAvailableDatesJson = JSON.stringify(futureDates);
-
-            await connection.query(
-                `UPDATE tbl_doctors SET availableDates = ? WHERE userId = ?`,
-                [updatedAvailableDatesJson, doctorId]
+            const [affectedRows] = await DoctorModel.update(
+                { availableDates: futureDates, update_date: new Date() },
+                { where: { userId: doctorId, status_flag: 1 } }
             );
-            console.log(`Updated availableDates for doctor ${doctorId} with ${daysAhead} days.`);
+
+            if (affectedRows === 0) {
+                console.warn(`No rows updated for doctor ${doctorId}. Doctor might not exist or be inactive.`);
+                return false;
+            } else {
+                console.log(`Updated availableDates for doctor ${doctorId} with ${daysAhead} days.`);
+                return true;
+            }
         } catch (error) {
             console.error(`Error updating available dates for doctor ${doctorId}:`, error);
             throw new Error(`Failed to update doctor availability: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
         }
     }
 
-    static async updateWorkingHours(doctorId, newWorkingHoursArray) {
-        let connection;
+    static async updateAppointmentBookingTime(doctorId, newAppointmentBookingTimeArray) {
         try {
-            connection = await pool.getConnection();
-            const workingHoursJson = JSON.stringify(newWorkingHoursArray);
-            await connection.query(
-                `UPDATE tbl_doctors SET workingHours = ? WHERE userId = ?`,
-                [workingHoursJson, doctorId]
+                    const [affectedRows] = await DoctorModel.update(
+            { appointmentBookingTime: newAppointmentBookingTimeArray, update_date: new Date() }, // update_user is missing here
+            { where: { userId: doctorId, status_flag: 1 } }
             );
+
+            if (affectedRows === 0) {
+                console.warn(`No rows updated for doctor ${doctorId}. Doctor might not exist or be inactive.`);
+                return false;
+            }
+            return true;
         } catch (error) {
-            console.error(`Error updating working hours for doctor ${doctorId}:`, error);
-            throw new Error(`Failed to update doctor's working hours: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
+            console.error(`Error updating appointment booking time for doctor ${doctorId}:`, error); // Changed message
+            throw new Error(`Failed to update doctor's appointment booking time: ${error.message}`); // Changed message
+        }
+    }
+
+
+    static async updateDoctorStatus(doctorId, newStatus, updatedByUserId) {
+        try 
+        {
+            if (newStatus !== 0 && newStatus !== 1) 
+            {
+                throw new Error("Invalid status. Must be 0 (offline) or 1 (online).");
+            }
+            const [affectedRows] = await DoctorModel.update(
+                { status: newStatus, update_date: new Date(), update_user: updatedByUserId },
+                { where: { userId: doctorId, status_flag: 1 } }
+            );
+            return affectedRows > 0;
+        } catch (error) {
+            console.error(`Error updating doctor status for ${doctorId}:`, error);
+            throw new Error(`Failed to update doctor status: ${error.message}`);
         }
     }
 
     static async manageSpecificAvailableDate(doctorId, dateString, action) {
-        let connection;
         try {
-            connection = await pool.getConnection();
+            const doctor = await DoctorModel.findOne({
+                where: { userId: doctorId, status_flag: 1 }
+            });
 
-            const [rows] = await connection.query(
-                `SELECT availableDates FROM tbl_doctors WHERE userId = ?`,
-                [doctorId]
-            );
-
-            if (rows.length === 0) {
-                throw new Error('Doctor not found.');
+            if (!doctor) {
+                throw new Error('Doctor not found or not active.');
             }
 
-            let currentDates = [];
-            if (rows[0].availableDates) {
-                try {
-                    currentDates = JSON.parse(rows[0].availableDates);
-                } catch (e) {
-                    console.error('Error parsing current availableDates:', e);
+            let currentDates = doctor.availableDates;
+
+            const dateMoment = moment(dateString, 'YYYY-MM-DD', true);
+            if (!dateMoment.isValid()) {
+                throw new Error('Invalid date format provided. Must be YYYY-MM-DD.');
+            }
+
+            if (action === 'add') {
+                if (dateMoment.isBefore(moment(), 'day')) {
+                    throw new Error('Cannot add a date in the past.');
                 }
-            }
-
-            if (action === 'add' && !currentDates.includes(dateString)) {
-                currentDates.push(dateString);
-                currentDates.sort((a, b) => moment(a).valueOf() - moment(b).valueOf());
+                if (!currentDates.includes(dateString)) {
+                    currentDates.push(dateString);
+                    currentDates.sort((a, b) => moment(a).valueOf() - moment(b).valueOf());
+                }
             } else if (action === 'remove') {
                 currentDates = currentDates.filter(date => date !== dateString);
+            } else {
+                throw new Error('Invalid action. Must be "add" or "remove".');
             }
 
-            const updatedDatesJson = JSON.stringify(currentDates);
-            await connection.query(
-                `UPDATE tbl_doctors SET availableDates = ? WHERE userId = ?`,
-                [updatedDatesJson, doctorId]
-            );
+            doctor.availableDates = currentDates;
+            doctor.update_date = new Date();
+            await doctor.save();
+
+            return true;
 
         } catch (error) {
             console.error(`Error managing specific available date for doctor ${doctorId}:`, error);
             throw new Error(`Failed to manage doctor's specific availability: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
         }
     }
 
-    static async confirmAppointmentByDoctor(appointmentId, doctorUserId, status) {
-        let connection;
+    static async deactivateDoctorProfile(doctorId, deletedByUserId) {
+        let transaction;
         try {
-            connection = await pool.getConnection();
+            transaction = await sequelize.transaction();
 
-            const [appointmentRows] = await connection.query(
-                `SELECT doctorId, status FROM tbl_appointments WHERE id = ? AND status_flag = 1`,
-                [appointmentId]
+            const [affectedRowsDoctor] = await DoctorModel.update(
+                { status_flag: 0, update_date: new Date(), update_user: deletedByUserId },
+                { where: { userId: doctorId, status_flag: 1 }, transaction }
             );
 
-            if (appointmentRows.length === 0) {
-                return null;
+            if (affectedRowsDoctor === 0) {
+                await transaction.rollback();
+                return false;
             }
 
-            const appointment = appointmentRows[0];
-
-            if (appointment.doctorId !== doctorUserId) {
-                throw new Error('Unauthorized: Doctor not assigned to this appointment.');
-            }
-
-            const [result] = await connection.query(
-                `UPDATE tbl_appointments
-                 SET status = ?, update_user = ?, update_date = CURRENT_TIMESTAMP
-                 WHERE id = ?`,
-                [status, doctorUserId, appointmentId]
+            const [affectedRowsUser] = await UserModel.update(
+                { status_flag: 0, update_date: new Date(), update_user: deletedByUserId },
+                { where: { id: doctorId, status_flag: 1 }, transaction }
             );
 
-            if (result.affectedRows === 0) {
-                throw new Error('Appointment update failed (no rows affected).');
+            if (affectedRowsUser === 0) {
+                console.warn(`User with ID ${doctorId} not found or already inactive in tbl_user during doctor deactivation. This might be expected if the user was already inactive.`);
             }
-
-            const [updatedAppointmentRows] = await connection.query(
-                `SELECT ta.id, ta.appointmentDate, ta.appointmentTime, ta.status,
-                        tu_d.name AS doctorName, tu_p.name AS patientName
-                 FROM tbl_appointments ta
-                 JOIN tbl_user tu_d ON ta.doctorId = tu_d.id
-                 JOIN tbl_user tu_p ON ta.patientId = tu_p.id
-                 WHERE ta.id = ?`,
-                [appointmentId]
-            );
-
-            return updatedAppointmentRows[0];
-
-        } catch (error) {
-            console.error('Database Query Error (confirmAppointmentByDoctor):', error);
-            throw new Error(`Error confirming appointment: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
-        }
-    }
-
-    static async getAppointmentDetails(appointmentId) {
-        let connection;
-        try {
-            connection = await pool.getConnection();
-            const [rows] = await connection.query(
-                `SELECT
-                    ta.id AS appointmentId,
-                    ta.appointmentDate,
-                    ta.appointmentTime,
-                    ta.status,
-                    tu_d.name AS doctorName,
-                    tu_p.name AS patientName,
-                    td.specialist,
-                    td.clinicName,
-                    td.clinicLocation
-                FROM
-                    tbl_appointments ta
-                JOIN
-                    tbl_user tu_d ON ta.doctorId = tu_d.id
-                JOIN
-                    tbl_user tu_p ON ta.patientId = tu_p.id
-                LEFT JOIN
-                    tbl_doctors td ON ta.doctorId = td.userId
-                WHERE
-                    ta.id = ? AND ta.status_flag = 1`,
-                [appointmentId]
-            );
-
-            if (rows.length === 0) {
-                return null;
-            }
-
-            return rows[0];
-
-        } catch (error) {
-            console.error('Database Query Error (getAppointmentDetails):', error);
-            throw new Error(`Error fetching appointment details: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
-        }
-    }
-
-
-    static async getPatientAppointments(patientId, type) {
-        let connection;
-        try {
-            connection = await pool.getConnection();
-            const now = moment().format('YYYY-MM-DD');
-            const nowTime = moment().format('hh:mm A');
-
-            let query = `
-                SELECT
-                    ta.id AS appointmentId,
-                    tu_d.name AS doctorName,
-                    td.specialist,
-                    ta.appointmentDate,
-                    ta.appointmentTime,
-                    td.clinicLocation,
-                    ta.status
-                FROM
-                    tbl_appointments ta
-                JOIN
-                    tbl_user tu_d ON ta.doctorId = tu_d.id
-                LEFT JOIN
-                    tbl_doctors td ON ta.doctorId = td.userId
-                WHERE
-                    ta.status_flag = 1
-            `;
-            const params = [];
-
-            // Dynamically add patientId filter if it's provided
-            if (patientId !== undefined) {
-                query += ` AND ta.patientId = ?`;
-                params.push(patientId);
-            }
-
-            if (type === 'upcoming') {
-                query += ` AND ta.status IN ('scheduled', 'confirmed', 'pending') AND (
-                    ta.appointmentDate > ?
-                    OR (ta.appointmentDate = ? AND STR_TO_DATE(ta.appointmentTime, '%h:%i %p') >= STR_TO_DATE(?, '%h:%i %p'))
-                ) ORDER BY ta.appointmentDate ASC, STR_TO_DATE(ta.appointmentTime, '%h:%i %p') ASC`;
-                params.push(now, now, nowTime);
-            } else if (type === 'completed') {
-                query += ` AND (
-                    ta.status = 'completed'
-                    OR (ta.appointmentDate < ? AND ta.status != 'cancelled')
-                    OR (ta.appointmentDate = ? AND STR_TO_DATE(ta.appointmentTime, '%h:%i %p') < STR_TO_DATE(?, '%h:%i %p') AND ta.status != 'cancelled')
-                ) ORDER BY ta.appointmentDate DESC, STR_TO_DATE(ta.appointmentTime, '%h:%i %p') DESC`;
-                params.push(now, now, nowTime);
-            } else {
-                throw new Error('Invalid appointment type specified. Must be "upcoming" or "completed".');
-            }
-
-            const [rows] = await connection.query(query, params);
-            return rows;
-
-        } catch (error) {
-            console.error(`Database Query Error (getPatientAppointments - ${type}):`, error);
-            throw new Error(`Error fetching ${type} appointments: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
-        }
-    }
-    static async rescheduleAppointment(appointmentId, patientId, newDate, newTime) {
-        let connection;
-        try {
-            connection = await pool.getConnection();
-
-            await connection.beginTransaction();
-
-            const [appointmentRows] = await connection.query(
-                `SELECT doctorId, status FROM tbl_appointments WHERE id = ? AND patientId = ? AND status_flag = 1`,
-                [appointmentId, patientId]
-            );
-
-            if (appointmentRows.length === 0) {
-                throw new Error('Appointment not found or does not belong to this patient.');
-            }
-
-            const currentAppointment = appointmentRows[0];
-            if (currentAppointment.status === 'completed' || currentAppointment.status === 'cancelled') {
-                throw new Error('Cannot reschedule a completed or cancelled appointment.');
-            }
-
-            const doctorId = currentAppointment.doctorId;
-
-            const [doctorDetails] = await connection.query(
-                `SELECT workingHours, availableDates FROM tbl_doctors WHERE userId = ? AND status_flag = 1`,
-                [doctorId]
-            );
-
-            if (doctorDetails.length === 0) {
-                throw new Error('Doctor not found or not active.');
-            }
-
-            const doctorWorkingHours = JSON.parse(doctorDetails[0].workingHours || '[]');
-            const doctorAvailableDates = JSON.parse(doctorDetails[0].availableDates || '[]');
-
-            if (!doctorAvailableDates.includes(newDate)) {
-                throw new Error(`Doctor is not available on ${newDate}.`);
-            }
-
-            if (!doctorWorkingHours.includes(newTime)) {
-                throw new Error(`Doctor does not work at ${newTime}.`);
-            }
-
-            const [clashRows] = await connection.query(
-                `SELECT id FROM tbl_appointments WHERE doctorId = ? AND appointmentDate = ? AND appointmentTime = ? AND status IN ('scheduled', 'confirmed') AND id != ?`,
-                [doctorId, newDate, newTime, appointmentId]
-            );
-
-            if (clashRows.length > 0) {
-                throw new Error('The requested new time slot is already booked.');
-            }
-
-            const [result] = await connection.query(
-                `UPDATE tbl_appointments
-                 SET appointmentDate = ?, appointmentTime = ?, status = 'scheduled', update_user = ?, update_date = CURRENT_TIMESTAMP
-                 WHERE id = ?`,
-                [newDate, newTime, patientId, appointmentId]
-            );
-
-            if (result.affectedRows === 0) {
-                throw new Error('Failed to update appointment (no rows affected).');
-            }
-
-            await connection.commit();
+            
+            await transaction.commit();
             return true;
 
         } catch (error) {
-            if (connection) await connection.rollback();
-            console.error(`Database Transaction Error (rescheduleAppointment for ${appointmentId}):`, error);
-            throw new Error(`Error rescheduling appointment: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
-        }
-    }
-
-    static async addDoctorReview(doctorId, patientId, rating, comment) {
-        let connection;
-        try {
-            connection = await pool.getConnection();
-            await connection.beginTransaction();
-
-            const reviewUuid = crypto.randomUUID(); // Generate a UUID for reviewId
-
-            // 1. Insert the new review into tbl_doctor_reviews
-            // Assuming tbl_doctor_reviews exists with columns: reviewId (VARCHAR(36) PK), doctorId, patientId, rating, comment, create_date
-            const [insertReviewResult] = await connection.query(
-                `INSERT INTO tbl_doctor_reviews (reviewId, doctorId, patientId, rating, comment, create_date)
-                 VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-                [reviewUuid, doctorId, patientId, rating, comment]
-            );
-
-            if (insertReviewResult.affectedRows === 0) {
-                throw new Error('Failed to insert review.');
-            }
-
-            // 2. Get current review count for the doctor from tbl_doctors
-            // Assuming tbl_doctors has a 'reviews' (INT) column
-            const [doctorStatsRows] = await connection.query(
-                `SELECT reviews FROM tbl_doctors WHERE userId = ? AND status_flag = 1`,
-                [doctorId]
-            );
-
-            let currentReviewsCount = 0;
-            if (doctorStatsRows.length > 0) {
-                currentReviewsCount = doctorStatsRows[0].reviews || 0;
-            }
-
-            // 3. Calculate new total reviews
-            const newReviewsCount = currentReviewsCount + 1;
-
-            // 4. Update the doctor's table with new total reviews
-            const [updateDoctorResult] = await connection.query(
-                `UPDATE tbl_doctors
-                 SET reviews = ?
-                 WHERE userId = ? AND status_flag = 1`,
-                [newReviewsCount, doctorId]
-            );
-
-            if (updateDoctorResult.affectedRows === 0) {
-                // If the doctor was not found for update, it might indicate an issue
-                throw new Error('Failed to update doctor review statistics (doctor not found or inactive).');
-            }
-
-            await connection.commit();
-            return reviewUuid;
-
-        } catch (error) {
-            if (connection) await connection.rollback();
-            console.error(`Database Transaction Error (addDoctorReview for Doctor ID ${doctorId}):`, error);
-            throw new Error(`Error submitting doctor review: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
-        }
-    }
-    
-    static async initiateVideoCall(sessionId, callerId, calleeId) {
-        let connection;
-        try {
-            connection = await pool.getConnection();
-            const callId = `VID_${crypto.randomUUID()}`; // Unique call ID (e.g., VID_a1b2c3d4-...)
-            // Placeholder RTC token. Replace this with actual token generation from your WebRTC provider.
-            const rtcToken = `webrtc_video_token_${crypto.randomUUID()}`;
-            const currentTime = moment().toISOString(); // ISO 8601 format for consistency
-
-            await connection.beginTransaction(); // Start transaction
-
-            // Insert call details into tbl_calls
-            const [insertCallResult] = await connection.query(
-                `INSERT INTO tbl_calls (callId, sessionId, callerId, calleeId, type, status, rtcToken, created_at)
-                 VALUES (?, ?, ?, ?, 'video', 'calling', ?, CURRENT_TIMESTAMP)`,
-                [callId, sessionId, callerId, calleeId, rtcToken]
-            );
-
-            if (insertCallResult.affectedRows === 0) {
-                throw new Error('Failed to log video call initiation to database.');
-            }
-
-            await connection.commit(); // Commit transaction
-
-            return {
-                callId: callId,
-                status: 'calling',
-                rtcToken: rtcToken,
-                time: currentTime
-            };
-        } catch (error) {
-            if (connection) await connection.rollback(); // Rollback on error
-            console.error('Database Operation Error (initiateVideoCall):', error);
-            throw new Error(`Failed to initiate video call: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
+            if (transaction) await transaction.rollback();
+            console.error('Error deactivating doctor profile and associated user:', error);
+            throw new Error(`Failed to deactivate doctor profile and user: ${error.original?.sqlMessage || error.message}`);
         }
     }
 
 
-    static async initiateAudioCall(sessionId, callerId, calleeId) {
-        let connection;
+    static async createDoctor(doctorData) {
         try {
-            connection = await pool.getConnection();
-            const callId = `AUD_${crypto.randomUUID()}`; // Unique call ID (e.g., AUD_a1b2c3d4-...)
-            // Placeholder RTC token. Replace this with actual token generation from your WebRTC provider.
-            const rtcToken = `webrtc_audio_token_${crypto.randomUUID()}`;
-            const currentTime = moment().toISOString(); // ISO 8601 format
-
-            await connection.beginTransaction(); // Start transaction
-
-            // Insert call details into tbl_calls
-            const [insertCallResult] = await connection.query(
-                `INSERT INTO tbl_calls (callId, sessionId, callerId, calleeId, type, status, rtcToken, created_at)
-                    VALUES (?, ?, ?, ?, 'audio', 'calling', ?, CURRENT_TIMESTAMP)`,
-                [callId, sessionId, callerId, calleeId, rtcToken]
-            );
-
-            if (insertCallResult.affectedRows === 0) {
-                throw new Error('Failed to log audio call initiation to database.');
+            const user = await UserModel.findByPk(doctorData.userId);
+            if (!user || user.role !== 'doctor') {
+                throw new Error('User not found or not registered as a doctor.');
             }
 
-            await connection.commit(); // Commit transaction
-
-            return {
-                callId: callId,
-                status: 'calling',
-                rtcToken: rtcToken,
-                time: currentTime
-            };
+            const newDoctor = await DoctorModel.create({
+                ...doctorData,
+                create_date: new Date(),
+                update_date: new Date(),
+            });
+            return newDoctor.toJSON();
         } catch (error) {
-            if (connection) await connection.rollback(); // Rollback on error
-            console.error('Database Operation Error (initiateAudioCall):', error);
-            throw new Error(`Failed to initiate audio call: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
+            console.error('Error creating doctor profile:', error);
+            if (error.name === 'SequelizeUniqueConstraintError') {
+                throw new Error('Doctor profile already exists for this user.');
+            }
+            throw new Error(`Failed to create doctor profile: ${error.message}`);
         }
     }
 
-    static async startChatSession(doctorId, patientId) {
-        let connection;
+    static async reactivateDoctorProfile(doctorId, reactivatedByUserId) {
+        let transaction;
         try {
-            connection = await pool.getConnection();
-            await connection.beginTransaction();
+            transaction = await sequelize.transaction();
 
-            // 1. Check for existing active session between this doctor and patient
-            // Using 'isActive = 1' as per your accepted schema
-            const [existingSessions] = await connection.query(
-                `SELECT sessionId FROM tbl_chat_sessions
-                 WHERE doctorId = ? AND patientId = ? AND isActive = 1`,
-                [doctorId, patientId]
+            const [affectedRowsDoctor] = await DoctorModel.update(
+                { status_flag: 1, update_date: new Date(), update_user: reactivatedByUserId },
+                { where: { userId: doctorId, status_flag: 0 }, transaction }
             );
 
-            if (existingSessions.length > 0) {
-                // If an active session already exists, return its ID instead of creating a new one
-                await connection.rollback(); // No need to commit if nothing new is inserted
-                return {
-                    sessionId: existingSessions[0].sessionId,
-                    message: 'Active chat session already exists.',
-                    timestamp: moment().toISOString() // Current time for response consistency
-                };
+            if (affectedRowsDoctor === 0) {
+                await transaction.rollback();
+                throw new Error('Doctor profile not found or already active.');
             }
 
-            // 2. Generate a new unique sessionId
-            const newSessionId = `CHAT_${crypto.randomUUID()}`; // Example: CHAT_a1b2c3d4-e5f6...
-            const startedAt = moment().toISOString();
-
-            // 3. Insert the new session into tbl_chat_sessions
-            // Setting 'isActive = 1' as per your accepted schema
-            const [insertResult] = await connection.query(
-                `INSERT INTO tbl_chat_sessions (sessionId, doctorId, patientId, isActive, started_at)
-                 VALUES (?, ?, ?, 1, CURRENT_TIMESTAMP)`,
-                [newSessionId, doctorId, patientId]
+            const [affectedRowsUser] = await UserModel.update(
+                { status_flag: 1, update_date: new Date(), update_user: reactivatedByUserId },
+                { where: { id: doctorId, status_flag: 0 }, transaction }
             );
 
-            if (insertResult.affectedRows === 0) {
-                throw new Error('Failed to create new chat session.');
+            if (affectedRowsUser === 0) {
+                console.warn(`Warning: User with ID ${doctorId} not found or already active in tbl_user during doctor reactivation.`);
             }
-
-            await connection.commit();
-            return {
-                sessionId: newSessionId,
-                message: 'Chat session started',
-                timestamp: startedAt
-            };
-        } catch (error) {
-            if (connection) await connection.rollback();
-            console.error('Database Transaction Error (startChatSession):', error);
-            throw new Error(`Error starting chat session: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
-        }
-    }
-
-    static async sendChatMessage(sessionId, senderId, message) {
-        let connection;
-        try {
-            connection = await pool.getConnection();
-            await connection.beginTransaction();
-
-            // Verify session exists and is active using 'isActive = 1'
-            const [sessionRows] = await connection.query(
-                `SELECT sessionId FROM tbl_chat_sessions WHERE sessionId = ? AND isActive = 1`,
-                [sessionId]
-            );
-
-            if (sessionRows.length === 0) {
-                throw new Error('Chat session not found or is not active.');
-            }
-
-            const messageId = `MSG_${crypto.randomUUID()}`; // Example: MSG_a1b2c3d4...
-            const timestamp = moment().toISOString();
-
-            // Insert the message into tbl_chat_messages
-            const [insertResult] = await connection.query(
-                `INSERT INTO tbl_chat_messages (messageId, sessionId, senderId, message, timestamp)
-                 VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-                [messageId, sessionId, senderId, message]
-            );
-
-            if (insertResult.affectedRows === 0) {
-                throw new Error('Failed to send chat message.');
-            }
-
-            await connection.commit();
-            return {
-                messageId: messageId,
-                timestamp: timestamp
-            };
-        } catch (error) {
-            if (connection) await connection.rollback();
-            console.error('Database Transaction Error (sendChatMessage):', error);
-            throw new Error(`Error sending chat message: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
-        }
-    }
-
-    static async getChatHistory(sessionId, before, limit = 20) {
-        let connection;
-        try {
-            connection = await pool.getConnection();
-            let query = `
-                SELECT
-                    messageId,
-                    senderId,
-                    message,
-                    timestamp
-                FROM
-                    tbl_chat_messages
-                WHERE
-                    sessionId = ?
-            `;
-            const params = [sessionId];
-
-            if (before) {
-                // Ensure 'before' is a valid timestamp
-                if (!moment(before).isValid()) {
-                    throw new Error('Invalid "before" timestamp format.');
-                }
-                query += ` AND timestamp < ?`;
-                params.push(before);
-            }
-
-            query += ` ORDER BY timestamp DESC LIMIT ?`; // Get latest messages first
-            params.push(limit);
-
-            const [rows] = await connection.query(query, params);
-
-            // Reversing the order to show oldest first, if that's desired for display
-            // (fetched latest DESC, so reverse for ascending display if needed)
-            return rows.reverse();
+            
+            await transaction.commit();
+            return true;
 
         } catch (error) {
-            console.error('Database Query Error (getChatHistory):', error);
-            throw new Error(`Error retrieving chat history: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
-        }
-    }
-
-    static async hasUpcomingAppointments(patientId) {
-        let connection;
-        try {
-            connection = await pool.getConnection();
-            const now = moment().format('YYYY-MM-DD');
-            const nowTime = moment().format('hh:mm A');
-    
-            // --- TEMPORARY DEBUGGING LOGS (keep for now, if still needed) ---
-            console.log('--- Debugging hasUpcomingAppointments Query ---');
-            console.log('Node.js Current Date:', now);
-            console.log('Node.js Current Time:', nowTime);
-            console.log('Patient ID (passed to model):', patientId);
-            console.log('-------------------------------------------');
-            // --- END TEMPORARY DEBUGGING LOGS ---
-    
-            let query = `
-                SELECT COUNT(*) AS count FROM tbl_appointments
-                WHERE status_flag = 1
-                AND status IN ('scheduled', 'confirmed', 'pending') AND (
-                    appointmentDate > ?
-                    OR (appointmentDate = ? AND STR_TO_DATE(appointmentTime, '%h:%i %p') >= STR_TO_DATE(?, '%h:%i %p'))
-                )
-            `;
-            // Initialize params with the date and time values
-            const params = [now, now, nowTime];
-    
-            // Conditionally add patientId to the WHERE clause if it's provided
-            if (patientId !== undefined) {
-                query += ` AND patientId = ?`;
-                params.push(patientId); // Add patientId to the END of the params array
+            if (transaction) {
+                await transaction.rollback();
             }
-    
-            console.log('Final Query:', query); // Debugging: See the final query string
-            console.log('Final Params:', params); // Debugging: See the final parameters
-    
-            const [rows] = await connection.query(query, params);
-            return rows[0].count > 0;
-        } catch (error) {
-            console.error('Database Query Error (hasUpcomingAppointments):', error);
-            throw new Error(`Error checking upcoming appointments status: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
-        }
-    }
-
-    static async hasCompletedAppointments(patientId) {
-        let connection;
-        try {
-            connection = await pool.getConnection();
-            const now = moment().format('YYYY-MM-DD');
-            const nowTime = moment().format('hh:mm A');
-    
-            // Initial query part for completed appointments logic
-            let query = `
-                SELECT COUNT(*) AS count FROM tbl_appointments
-                WHERE status_flag = 1
-                AND (
-                    status = 'completed'
-                    OR (appointmentDate < ? AND status != 'cancelled')
-                    OR (appointmentDate = ? AND STR_TO_DATE(appointmentTime, '%h:%i %p') < STR_TO_DATE(?, '%h:%i %p') AND status != 'cancelled')
-                )
-            `;
-            // Initialize params with date and time values for the completed logic
-            const params = [now, now, nowTime];
-    
-            // Conditionally add patientId to the WHERE clause if it's provided
-            if (patientId !== undefined) {
-                query += ` AND patientId = ?`;
-                params.push(patientId); // Add patientId to the END of the params array
-            }
-    
-            console.log('Final Completed Query:', query); // Debugging
-            console.log('Final Completed Params:', params); // Debugging
-    
-            const [rows] = await connection.query(query, params);
-            return rows[0].count > 0;
-        } catch (error) {
-            console.error('Database Query Error (hasCompletedAppointments):', error);
-            throw new Error(`Error checking completed appointments status: ${error.message}`);
-        } finally {
-            if (connection) connection.release();
+            console.error('Error reactivating doctor profile and associated user:', error);
+            throw new Error(`Failed to reactivate doctor profile and user: ${error.original?.sqlMessage || error.message}`);
         }
     }
 }
 
-module.exports = Doctor;
+module.exports = {
+    DoctorModel,
+    DoctorRepository
+};
