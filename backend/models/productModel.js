@@ -19,6 +19,10 @@ const Product = sequelize.define("Product", {
     type: DataTypes.STRING(500),
     allowNull: true,
   },
+  type: {
+  type: DataTypes.STRING,
+  allowNull: true,
+},
   description: {
     type: DataTypes.TEXT,
     allowNull: true,
@@ -71,5 +75,11 @@ const Product = sequelize.define("Product", {
   tableName: "tbl_product",
   timestamps: false
 });
+  Product.associate = (models) => {
+    Product.hasMany(models.ProductReview, {
+      foreignKey: "product_id",
+      as: "reviews",
+    });
+  };
 
 module.exports = Product;

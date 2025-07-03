@@ -38,6 +38,12 @@ const ProductReview = sequelize.define("ProductReview", {
   timestamps: false
 });
 
+  ProductReview.associate = (models) => {
+    ProductReview.belongsTo(models.Product, {
+      foreignKey: "product_id",
+      as: "product",
+    });
+  };
 // Associations
 Product.hasMany(ProductReview, { foreignKey: "product_id", as: "reviews" });
 ProductReview.belongsTo(Product, { foreignKey: "product_id", as: "product" });

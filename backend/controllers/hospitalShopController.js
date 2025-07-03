@@ -4,6 +4,7 @@ const Product = require("../models/productModel");
 const ProductReview = require("../models/productReviewModel");
 const Cart = require("../models/cartModel");
 const HospitalProduct = require("../models/HospitalProductModel");
+const { Op, Sequelize } = require("sequelize");
 
 // GET all active stores  
 const getAllStores = async (req, res) => {
@@ -339,6 +340,7 @@ const getAllProducts = async (req, res) => {
       id: product.id,
       name: product.name,
       price: product.price,
+      type:product.type,
       image: product.image,
       reviews: product.reviews || [],
     }));
@@ -548,9 +550,201 @@ const editProduct = async (req, res) => {
   }
 };
 
+// SEARCH Products by product name or store name
+const searchStoreAndProduct = async (req, res) => {
+  try {
+    const { keyword } = req.query;
+
+    if (!keyword || keyword.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Search keyword is required.",
+      });
+    }
+
+    // Search stores
+    const stores = await Store.findAll({
+      where: {
+        status_flag: 1,
+        name: { [Op.like]: `%${keyword}%` },
+      },
+    });
+
+    // Search products
+    const products = await Product.findAll({
+      where: {
+        status_flag: 1,
+        name: { [Op.like]: `%${keyword}%` },
+      },
+      include: [{ model: ProductReview, as: "reviews" }],
+    });
+
+    let responseData = {};
+
+    if (stores.length > 0 && products.length === 0) {
+      responseData = {
+        stores,
+        result: stores.length,
+        message: "Store search result",
+      };
+    } else if (products.length > 0 && stores.length === 0) {
+      responseData = {
+        products,
+        result: products.length,
+        message: "Product search result",
+      };
+    } else if (products.length > 0 && stores.length > 0) {
+      responseData = {
+        stores,
+        products,
+        result: {
+          stores: stores.length,
+          products: products.length,
+        },
+        message: "Store and Product search result",
+      };
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: "No matching store or product found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      ...responseData,
+    });
+  } catch (error) {
+    console.error("Search error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Search failed",
+      error: error.message,
+    });
+  }
+};
+
+// both result show in respone
+// const searchStoreAndProduct = async (req, res) => {
+//   try {
+//     const { keyword } = req.query;
+
+//     if (!keyword || keyword.trim() === "") {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Search keyword is required.",
+//       });
+//     }
+
+//     // Search stores
+//     const stores = await Store.findAll({
+//       where: {
+//         status_flag: 1,
+//         name: { [Op.like]: `%${keyword}%` },
+//       },
+//     });
+
+//     // Search products
+//     const products = await Product.findAll({
+//       where: {
+//         status_flag: 1,
+//         name: { [Op.like]: `%${keyword}%` },
+//       },
+//       include: [{ model: ProductReview, as: "reviews" }],
+//     });
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Search results fetched successfully",
+//       result: {
+//         stores: stores.length,
+//         products: products.length,
+//       },
+//       data: {
+//         stores,
+//         products,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Search error:", error.message);
+//     res.status(500).json({
+//       success: false,
+//       message: "Search failed",
+//       error: error.message,
+//     });
+//   }
+// };
 // -------------------- AddTOCart CONTROLLERS --------------------
 
 // ADD or UPDATE item in cart
+
+const getAllProductTypes = async (req, res) => {
+  try {
+    const types = await Product.findAll({
+      where: { status_flag: 1 },
+      attributes: [[Sequelize.fn("DISTINCT", Sequelize.col("type")), "type"]],
+      raw: true,
+    });
+
+    const formatted = types.map((t) => t.type).filter(Boolean);
+
+    res.status(200).json({
+      success: true,
+      message: "Product types fetched",
+      result: formatted.length,
+      data: formatted,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch product types",
+      error: error.message,
+    });
+  }
+};
+
+const getProductsByType = async (req, res) => {
+  try {
+    const { type } = req.params;
+
+    if (!type || type.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Product type is required in the URL.",
+      });
+    }
+
+    const products = await Product.findAll({
+      where: {
+        type: { [Op.eq]: type },
+        status_flag: 1,
+      },
+      include: [{ model: ProductReview, as: "reviews" }],
+    });
+
+    if (products.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `No products found for type: ${type}`,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Products of type '${type}' fetched successfully`,
+      result: products.length,
+      data: products,
+    });
+  } catch (error) {
+    console.error("Error fetching by type:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch products by type",
+      error: error.message,
+    });
+  }
+};
+
 const addToCart = async (req, res) => {
   const user_id = req.user.id;
   const { product_id, name, image, price, quantity, create_user } = req.body;
@@ -800,6 +994,9 @@ module.exports = {
   updateProduct,
   deleteProduct,
   editProduct,
+  searchStoreAndProduct,
+  getAllProductTypes,
+  getProductsByType,
   addToCart,
   getCart,
   updateCartItem,

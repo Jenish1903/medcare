@@ -36,4 +36,9 @@ router.delete('/cart/:id', authenticate, controller.deleteCartItem);
 // // ---------- hospitalShop Product ROUTES ----------
 // router.get("/products", controller.getHospitalProducts);
 
+// ---------- hospitalShop Product filter and search ----------
+router.get("/filter/medicine-type", controller.getAllProductTypes);
+router.get("/filter/by-type/:type", controller.getProductsByType);
+router.get('/search', authenticate, controller.searchStoreAndProduct);
+
 module.exports = router;

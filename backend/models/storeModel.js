@@ -36,8 +36,8 @@ const Store = sequelize.define("Store", {
     allowNull: true,
   }
 }, {
-  tableName: "tbl_store",           // ✅ your actual table
-  timestamps: false                 // ✅ handled manually via fields
+  tableName: "tbl_store",
+  timestamps: false   
 });
 
 module.exports = Store;
